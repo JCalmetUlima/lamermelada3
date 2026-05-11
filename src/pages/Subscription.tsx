@@ -74,6 +74,12 @@ export default function Subscription({ user }: SubscriptionProps) {
           userEmail: user.email 
         }),
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Error del servidor (${response.status})`);
+      }
+
       const data = await response.json();
       if (data.id) {
         // Redirigir directamente al init_point o sandbox_init_point
@@ -83,7 +89,7 @@ export default function Subscription({ user }: SubscriptionProps) {
       }
     } catch (error) {
       console.error('Error creating preference:', error);
-      alert('Error al conectar con la pasarela de pago.');
+      alert('Error al conectar con la pasarela de pago: ' + (error instanceof Error ? error.message : 'Error desconocido'));
     } finally {
       setLoading(false);
     }
