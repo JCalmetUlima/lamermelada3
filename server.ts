@@ -1,11 +1,7 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
-import { fileURLToPath } from "url";
+import { createServer as createViteServer } from "vite";
 import { MercadoPagoConfig, Preference } from 'mercadopago';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
@@ -13,48 +9,47 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Mercado Pago Configuration
-  const client = new MercadoPagoConfig({ 
-    accessToken: process.env.MP_ACCESS_TOKEN || 'TEST-YOUR-TOKEN-HERE' 
-  });
-
-  // API routes
+  // API Route: Create Preference
   app.post("/api/create-preference", async (req, res) => {
     try {
-      const { userId, userEmail } = req.body;
-      
+      const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+      if (!accessToken) {
+        return res.status(500).json({ error: "Mercado Pago Access Token not configured" });
+      }
+
+      const client = new MercadoPagoConfig({ accessToken });
       const preference = new Preference(client);
+
       const result = await preference.create({
         body: {
           items: [
             {
-              id: 'mermelada-sub',
-              title: 'Suscripción Mensual - La Mermelada',
+              id: 'mermelada-sub-monthly',
+              title: 'Suscripción Mensual La Mermelada',
               quantity: 1,
-              unit_price: 7,
+              unit_price: 7.00,
               currency_id: 'PEN'
             }
           ],
-          payer: {
-            email: userEmail
-          },
           back_urls: {
-            success: `${process.env.APP_URL}/thanks?status=success&userId=${userId}`,
-            failure: `${process.env.APP_URL}/subscription?status=failure`,
-            pending: `${process.env.APP_URL}/subscription?status=pending`
+            success: `${req.headers.origin}/thanks?status=success&userId=${req.body.userId}`,
+            failure: `${req.headers.origin}/subscription?status=failure`,
+            pending: `${req.headers.origin}/subscription?status=pending`
           },
           auto_return: 'approved',
-          external_reference: userId,
-          // Subscription logic (monthly)
-          // For simplicity in this demo, it's a one-time 7 PEN payment that grants 30 days
-          // Real subscriptions would use MP Plan/Subscription APIs
+          binary_mode: true, // No intermediate states (only approved or rejected)
+          external_reference: req.body.userId,
         }
       });
 
-      res.json({ id: result.id, init_point: result.init_point });
+      res.json({ 
+        id: result.id,
+        init_point: result.init_point,
+        sandbox_init_point: result.sandbox_init_point
+      });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: "Failed to create preference" });
+      console.error("Error creating preference:", error);
+      res.status(500).json({ error: "Failed to create payment preference" });
     }
   });
 

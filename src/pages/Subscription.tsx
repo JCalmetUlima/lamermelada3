@@ -2,8 +2,17 @@ import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { CreditCard, Star, ShieldCheck, Trophy, ArrowRight } from 'lucide-react';
+import { CreditCard, Star, ShieldCheck, Trophy, ArrowRight, AlertCircle, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useSearchParams } from 'react-router-dom';
+
+// Declare Mercado Pago types globally
+declare global {
+  interface Window {
+    mercadopago: any;
+    MercadoPago: any;
+  }
+}
 
 interface SubscriptionProps {
   user: User;
@@ -12,6 +21,24 @@ interface SubscriptionProps {
 export default function Subscription({ user }: SubscriptionProps) {
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [searchParams] = useSearchParams();
+  const statusParam = searchParams.get('status');
+  const statusDetail = searchParams.get('status_detail');
+
+  const getStatusMessage = () => {
+    switch (statusDetail) {
+      case 'cc_rejected_insufficient_amount':
+        return 'Tu tarjeta no tiene fondos suficientes.';
+      case 'cc_rejected_bad_filled_security_code':
+        return 'El código de seguridad es incorrecto.';
+      case 'cc_rejected_bad_filled_date':
+        return 'La fecha de expiración es incorrecta.';
+      case 'cc_rejected_call_for_authorize':
+        return 'Debes autorizar el pago con tu banco.';
+      default:
+        return 'El pago fue rechazado. Intenta con otra tarjeta.';
+    }
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -22,6 +49,18 @@ export default function Subscription({ user }: SubscriptionProps) {
       }
     };
     fetchProfile();
+
+    // Load Mercado Pago script
+    const script = document.createElement('script');
+    script.src = 'https://sdk.mercadopago.com/js/v2';
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
   }, [user.uid]);
 
   const handleSubscribe = async () => {
@@ -36,8 +75,11 @@ export default function Subscription({ user }: SubscriptionProps) {
         }),
       });
       const data = await response.json();
-      if (data.init_point) {
-        window.location.href = data.init_point;
+      if (data.id) {
+        // Redirigir directamente al init_point o sandbox_init_point
+        // Esto evita los problemas de tamaño del modal en el iframe de vista previa
+        const checkoutUrl = data.sandbox_init_point || data.init_point;
+        window.location.href = checkoutUrl;
       }
     } catch (error) {
       console.error('Error creating preference:', error);
@@ -92,6 +134,28 @@ export default function Subscription({ user }: SubscriptionProps) {
               <span className="text-purple-400 font-bold font-mono">/MES</span>
             </div>
           </div>
+
+          {statusParam === 'failure' && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-red-100 border-2 border-red-500 p-4 rounded-xl mb-6 text-red-700 font-bold flex items-center gap-3"
+            >
+              <AlertCircle size={20} />
+              <span>{getStatusMessage()}</span>
+            </motion.div>
+          )}
+
+          {statusParam === 'pending' && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-blue-100 border-2 border-blue-500 p-4 rounded-xl mb-6 text-blue-700 font-bold flex items-center gap-3"
+            >
+              <Clock size={20} />
+              <span>El pago está pendiente de aprobación.</span>
+            </motion.div>
+          )}
 
           {userProfile?.subscriptionActive ? (
             <div className="bg-green-100 border-4 border-green-600 p-6 rounded-3xl text-center">

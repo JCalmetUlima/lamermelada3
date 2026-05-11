@@ -1,40 +1,38 @@
 {
   "entities": {
     "User": {
-      "title": "User",
-      "description": "Registered user profile and subscription status",
+      "title": "User Profile",
+      "description": "User profile information and subscription status",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
-        "phone": { "type": "string" },
-        "age": { "type": "integer" },
         "email": { "type": "string", "format": "email" },
-        "country": { "type": "string" },
-        "city": { "type": "string" },
-        "gender": { "type": "string", "enum": ["Masculino", "Femenino", "Otro"] },
+        "phone": { "type": "string" },
         "subscriptionActive": { "type": "boolean" },
-        "subscriptionId": { "type": "string" },
         "lastPaymentDate": { "type": "string", "format": "date-time" },
         "role": { "type": "string", "enum": ["viewer", "admin"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "age": { "type": "integer" },
+        "country": { "type": "string" },
+        "city": { "type": "string" },
+        "gender": { "type": "string" }
       },
-      "required": ["uid", "firstName", "lastName", "email", "phone", "subscriptionActive"]
+      "required": ["uid", "firstName", "lastName", "email", "phone", "subscriptionActive", "role", "createdAt"]
     },
     "Subscription": {
-      "title": "Subscription",
-      "description": "Mercado Pago subscription details",
+      "title": "Subscription Payment",
+      "description": "Record of a payment made by a user",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
-        "mpPreferenceId": { "type": "string" },
-        "status": { "type": "string" },
-        "transactionId": { "type": "string" },
         "amount": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" }
       },
-      "required": ["userId", "status", "createdAt"]
+      "required": ["userId", "amount", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -44,16 +42,11 @@
     },
     "/subscriptions/{subId}": {
       "schema": "Subscription",
-      "description": "Payment records and status"
+      "description": "Payment history"
     },
     "/admins/{adminId}": {
-      "schema": {
-        "type": "object",
-        "properties": {
-          "email": { "type": "string" }
-        }
-      },
-      "description": "Authorized admin users"
+      "schema": "object",
+      "description": "Admin list"
     }
   }
 }

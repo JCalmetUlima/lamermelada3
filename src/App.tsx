@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from './lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { motion } from 'motion/react';
 
 import Landing from './pages/Landing';
@@ -21,25 +21,32 @@ export default function App() {
   const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubscribeProfile: (() => void) | null = null;
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        // Fetch User Profile
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const userData = userDoc.data();
-        setIsSubscribed(!!userData?.subscriptionActive);
-
         // Acceso por correo específico o por colección 'admins'
         const adminDoc = await getDoc(doc(db, 'admins', user.uid));
         const isBootstrapAdmin = user.email === 'jorge.calmet92@gmail.com';
         setIsAdmin(adminDoc.exists() || isBootstrapAdmin);
+
+        // Listener en tiempo real para el perfil y estado de suscripción
+        unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+          if (docSnap.exists()) {
+            setIsSubscribed(!!docSnap.data()?.subscriptionActive);
+          }
+        });
       } else {
         setIsAdmin(false);
         setIsSubscribed(false);
+        if (unsubscribeProfile) unsubscribeProfile();
       }
       setLoading(false);
     });
-    return unsubscribe;
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, []);
 
   if (loading) {
