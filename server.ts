@@ -9,12 +9,23 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Health check for troubleshooting
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      env: process.env.NODE_ENV,
+      mp_configured: !!process.env.MERCADOPAGO_ACCESS_TOKEN 
+    });
+  });
+
   // API Route: Create Preference
   app.post("/api/create-preference", async (req, res) => {
+    console.log("Creating preference for user:", req.body.userId);
     try {
       const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
       if (!accessToken) {
-        return res.status(500).json({ error: "Mercado Pago Access Token not configured" });
+        console.error("MERCADOPAGO_ACCESS_TOKEN is missing");
+        return res.status(500).json({ error: "Configuración incompleta: Token de Mercado Pago no encontrado." });
       }
 
       const client = new MercadoPagoConfig({ accessToken });
