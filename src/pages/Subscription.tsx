@@ -66,7 +66,9 @@ export default function Subscription({ user }: SubscriptionProps) {
   const handleSubscribe = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/create-preference', {
+      // Usar URL absoluta para asegurar que llegue al servidor correcto en producción
+      const apiUrl = `${window.location.origin}/api/create-preference`;
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

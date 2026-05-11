@@ -60,8 +60,16 @@ async function startServer() {
       });
     } catch (error) {
       console.error("Error creating preference:", error);
-      res.status(500).json({ error: "Failed to create payment preference" });
+      res.status(500).json({ 
+        error: "No se pudo crear la preferencia de pago",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
+  });
+
+  // Catch-all for undefined /api routes BEFORE static middleware
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ error: `La ruta de API ${req.method} ${req.url} no existe.` });
   });
 
   // Vite middleware for development
