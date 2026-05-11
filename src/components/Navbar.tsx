@@ -7,9 +7,10 @@ import { motion } from 'motion/react';
 interface NavbarProps {
   user: User | null;
   isAdmin: boolean;
+  isSubscribed: boolean;
 }
 
-export default function Navbar({ user, isAdmin }: NavbarProps) {
+export default function Navbar({ user, isAdmin, isSubscribed }: NavbarProps) {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -32,6 +33,14 @@ export default function Navbar({ user, isAdmin }: NavbarProps) {
         <div className="flex items-center gap-4">
           {user ? (
             <>
+              {!isSubscribed && (
+                <Link 
+                  to="/subscription"
+                  className="bg-purple-600 text-white px-4 py-1.5 rounded-full font-black text-xs hover:bg-purple-700 transition animate-pulse border-2 border-white shadow-md hidden sm:block"
+                >
+                  SUSCRÍBETE AQUÍ
+                </Link>
+              )}
               {isAdmin && (
                 <Link 
                   to="/admin" 
@@ -41,12 +50,16 @@ export default function Navbar({ user, isAdmin }: NavbarProps) {
                   <Shield size={20} />
                 </Link>
               )}
-              <div className="flex items-center gap-2 bg-purple-100 px-3 py-1.5 rounded-full border-2 border-purple-600">
+              <Link 
+                to="/account" 
+                className="flex items-center gap-2 bg-purple-100 px-3 py-1.5 rounded-full border-2 border-purple-600 hover:bg-purple-200 transition"
+                title="Mi Cuenta"
+              >
                 <UserIcon size={18} className="text-purple-600" />
                 <span className="text-sm font-bold text-purple-800 hidden sm:inline">
                   {user.displayName || user.email?.split('@')[0]}
                 </span>
-              </div>
+              </Link>
               <button 
                 onClick={handleLogout}
                 className="text-purple-600 hover:text-purple-800 font-bold flex items-center gap-1 text-sm bg-white/50 px-3 py-1.5 rounded-full border-2 border-transparent hover:border-purple-600 transition"
