@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered user profile and subscription status",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "phone": { "type": "string" },
+        "age": { "type": "integer" },
+        "email": { "type": "string", "format": "email" },
+        "country": { "type": "string" },
+        "city": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Masculino", "Femenino", "Otro"] },
+        "subscriptionActive": { "type": "boolean" },
+        "subscriptionId": { "type": "string" },
+        "lastPaymentDate": { "type": "string", "format": "date-time" },
+        "role": { "type": "string", "enum": ["viewer", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "firstName", "lastName", "email", "phone", "subscriptionActive"]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "description": "Mercado Pago subscription details",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "mpPreferenceId": { "type": "string" },
+        "status": { "type": "string" },
+        "transactionId": { "type": "string" },
+        "amount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/subscriptions/{subId}": {
+      "schema": "Subscription",
+      "description": "Payment records and status"
+    },
+    "/admins/{adminId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "email": { "type": "string" }
+        }
+      },
+      "description": "Authorized admin users"
+    }
+  }
+}
