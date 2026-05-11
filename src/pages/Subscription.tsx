@@ -66,8 +66,9 @@ export default function Subscription({ user }: SubscriptionProps) {
   const handleSubscribe = async () => {
     setLoading(true);
     try {
-      // Usar URL absoluta para asegurar que llegue al servidor correcto en producción
       const apiUrl = `${window.location.origin}/api/create-preference`;
+      console.log('Iniciando suscripción a:', apiUrl);
+      
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -76,7 +77,14 @@ export default function Subscription({ user }: SubscriptionProps) {
           userEmail: user.email 
         }),
       });
-      
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textError = await response.text();
+        console.error('La API no devolvió JSON:', textError);
+        throw new Error(`El servidor devolvió un formato incorrecto (HTML). Esto suele significar que el servidor backend no está respondiendo en esta URL.`);
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Error del servidor (${response.status})`);

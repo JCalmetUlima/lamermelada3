@@ -9,6 +9,12 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Log middleare for all API requests
+  app.use("/api/*", (req, res, next) => {
+    console.log(`[API REQUEST] ${req.method} ${req.originalUrl}`);
+    next();
+  });
+
   // Health check for troubleshooting
   app.get("/api/health", (req, res) => {
     res.json({ 
