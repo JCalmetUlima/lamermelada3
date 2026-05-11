@@ -9,10 +9,7 @@
     "rewrites": [
       {
         "source": "**",
-        "run": {
-          "serviceId": "la-mermelada",
-          "region": "us-west1"
-        }
+        "destination": "/index.html"
       }
     ]
   },
