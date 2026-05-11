@@ -144,6 +144,7 @@ export default function Landing({ user }: LandingProps) {
           <div>
             <h3 className="text-2xl font-black tracking-tighter mb-2">LA MERMELADA</h3>
             <p className="opacity-50 text-sm">© 2026 Todos los derechos reservados.</p>
+            <p className="text-yellow-400 text-xs font-bold mt-2">En proceso.</p>
           </div>
           <div className="flex gap-6">
             <Link to="/login" className="hover:text-yellow-400 transition font-bold">Iniciar sesión</Link>
