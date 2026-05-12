@@ -44,37 +44,7 @@ export default function Subscription({ user }: SubscriptionProps) {
   }, [user.uid]);
 
   const handleSubscribe = async () => {
-    setLoading(true);
-    try {
-      const apiUrl = '/api/create-preference';
-      console.log('Iniciando suscripción a:', apiUrl);
-      
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: user.uid,
-          userEmail: user.email 
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Error del servidor (${response.status})`);
-      }
-
-      const data = await response.json();
-      if (data.id) {
-        // Redirigir directamente al init_point o sandbox_init_point
-        const checkoutUrl = data.sandbox_init_point || data.init_point;
-        window.location.href = checkoutUrl;
-      }
-    } catch (error) {
-      console.error('Error creating preference:', error);
-      alert('Error al conectar con la pasarela de pago: ' + (error instanceof Error ? error.message : 'Error desconocido'));
-    } finally {
-      setLoading(false);
-    }
+    alert('Las suscripciones están temporalmente deshabilitadas. Pronto anunciaremos un nuevo método de pago.');
   };
 
   return (

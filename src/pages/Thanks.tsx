@@ -60,37 +60,20 @@ export default function Thanks() {
         </div>
 
         <h1 className="text-4xl font-black text-purple-600 mb-4 italic leading-tight">
-          {isReady ? '¡BIENVENIDO AL CLUB!' : 'ESTAMOS CONFIRMANDO TU PAGO'}
+          ¡GRACIAS POR TU INTERÉS!
         </h1>
         
         <p className="text-gray-600 font-bold mb-8">
-          {isReady 
-            ? 'Tu suscripción ya está activa. ¡Prepárate para participar en el sorteo!' 
-            : 'Esto puede tardar unos segundos. Mercado Pago nos está enviando la confirmación.'}
+          Estamos trabajando para habilitar las suscripciones muy pronto. Mantente atento a nuestras novedades.
         </p>
 
-        {isReady ? (
-          <Link 
-            to="/"
-            className="w-full bg-purple-600 text-white py-4 rounded-2xl font-black text-xl hover:bg-purple-700 transition flex items-center justify-center gap-3 shadow-[0_6px_0_rgb(88,28,135)] active:shadow-none active:translate-y-[6px]"
-          >
-            IR AL INICIO
-            <ArrowRight />
-          </Link>
-        ) : (
-          <div className="space-y-4">
-            <button 
-              onClick={handleManualCheck}
-              disabled={checking}
-              className="w-full bg-white border-4 border-purple-600 text-purple-600 py-3 rounded-xl font-black hover:bg-purple-50 transition disabled:opacity-50"
-            >
-              {checking ? 'VERIFICANDO...' : 'YA PAGUÉ, ACTUALIZAR ESTADO'}
-            </button>
-            <p className="text-xs text-purple-400 font-bold">
-              Si ya realizaste el pago y no se actualiza automáticamente, haz clic en el botón de arriba.
-            </p>
-          </div>
-        )}
+        <Link 
+          to="/"
+          className="w-full bg-purple-600 text-white py-4 rounded-2xl font-black text-xl hover:bg-purple-700 transition flex items-center justify-center gap-3 shadow-[0_6px_0_rgb(88,28,135)] active:shadow-none active:translate-y-[6px]"
+        >
+          REGRESAR AL INICIO
+          <ArrowRight />
+        </Link>
       </motion.div>
     </div>
   );
