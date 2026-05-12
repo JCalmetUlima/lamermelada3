@@ -6,14 +6,6 @@ import { CreditCard, Star, ShieldCheck, Trophy, ArrowRight, AlertCircle, Clock }
 import { motion } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 
-// Declare Mercado Pago types globally
-declare global {
-  interface Window {
-    mercadopago: any;
-    MercadoPago: any;
-  }
-}
-
 interface SubscriptionProps {
   user: User;
 }
@@ -49,18 +41,6 @@ export default function Subscription({ user }: SubscriptionProps) {
       }
     };
     fetchProfile();
-
-    // Load Mercado Pago script
-    const script = document.createElement('script');
-    script.src = 'https://sdk.mercadopago.com/js/v2';
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
   }, [user.uid]);
 
   const handleSubscribe = async () => {
@@ -78,13 +58,6 @@ export default function Subscription({ user }: SubscriptionProps) {
         }),
       });
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const textError = await response.text();
-        console.error('La API no devolvió JSON:', textError);
-        throw new Error(`El servidor devolvió un formato incorrecto (HTML). Esto suele significar que el servidor backend no está respondiendo en esta URL.`);
-      }
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Error del servidor (${response.status})`);
@@ -93,7 +66,6 @@ export default function Subscription({ user }: SubscriptionProps) {
       const data = await response.json();
       if (data.id) {
         // Redirigir directamente al init_point o sandbox_init_point
-        // Esto evita los problemas de tamaño del modal en el iframe de vista previa
         const checkoutUrl = data.sandbox_init_point || data.init_point;
         window.location.href = checkoutUrl;
       }
