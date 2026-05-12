@@ -75,13 +75,14 @@ app.post("/webhook", async (req, res) => {
       console.log("Payment status:", paymentData.status);
 
       if (paymentData.status === "approved") {
-        const userId = paymentData.metadata.user_id; // Mercado pago convierte camelCase a snake_case en metadata
+        const userId = paymentData.metadata.user_id || paymentData.metadata.userId; 
         console.log("Updating subscription for user:", userId);
 
         if (userId) {
           const userRef = db.collection("users").doc(userId);
           await userRef.update({
             subscriptionActive: true,
+            subscriptionStatus: "active",
             lastPaymentId: dataId,
             lastPaymentDate: admin.firestore.FieldValue.serverTimestamp()
           });
