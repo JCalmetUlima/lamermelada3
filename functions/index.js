@@ -49,7 +49,10 @@ const createPreferenceHandler = async (req, res) => {
         },
         auto_return: "approved",
         notification_url: "https://us-central1-gen-lang-client-0484978887.cloudfunctions.net/api/webhook",
-        metadata: { userId: userId }
+        metadata: { 
+          userId: userId,
+          user_id: userId // Algunos webhooks lo esperan así
+        }
       },
     });
 
@@ -62,11 +65,14 @@ const createPreferenceHandler = async (req, res) => {
 
 // Manejar Webhook de Mercado Pago
 app.post("/webhook", async (req, res) => {
-  console.log("Webhook received:", req.query);
-  const { type, "data.id": dataId } = req.query;
+  console.log("Webhook received. Query:", req.query, "Body:", req.body);
+  
+  // Mercado Pago envía el ID de diferentes formas según la versión
+  const dataId = req.body?.data?.id || req.query?.["data.id"] || req.query?.id;
+  const type = req.body?.type || req.query?.type || req.query?.topic;
 
   try {
-    if (type === "payment" && dataId) {
+    if ((type === "payment" || type === "payment.created") && dataId) {
       const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
       const client = new MercadoPagoConfig({ accessToken });
       const payment = new Payment(client);
@@ -75,7 +81,11 @@ app.post("/webhook", async (req, res) => {
       console.log("Payment status:", paymentData.status);
 
       if (paymentData.status === "approved") {
-        const userId = paymentData.metadata.user_id || paymentData.metadata.userId; 
+        // Intentar obtener el userId de todas las formas posibles que usa MP en metadata
+        const userId = paymentData.metadata?.user_id || 
+                       paymentData.metadata?.userId || 
+                       paymentData.metadata?.user_id_str;
+        
         console.log("Updating subscription for user:", userId);
 
         if (userId) {
@@ -83,14 +93,14 @@ app.post("/webhook", async (req, res) => {
           await userRef.update({
             subscriptionActive: true,
             subscriptionStatus: "active",
-            lastPaymentId: dataId,
+            lastPaymentId: String(dataId),
             lastPaymentDate: admin.firestore.FieldValue.serverTimestamp()
           });
 
-          // Registrar el pago
+          // Registrar el pago para auditoría
           await db.collection("subscriptions").add({
             userId,
-            paymentId: dataId,
+            paymentId: String(dataId),
             amount: paymentData.transaction_amount,
             status: "approved",
             createdAt: admin.firestore.FieldValue.serverTimestamp()
@@ -100,8 +110,9 @@ app.post("/webhook", async (req, res) => {
     }
     res.status(200).send("OK");
   } catch (error) {
-    console.error("Webhook Error:", error);
-    res.status(500).send("Error");
+    console.error("Webhook Error details:", error);
+    // Respondemos 200 de todos modos para que MP no reintente infinitamente si es un error de código
+    res.status(200).send("Error processed");
   }
 });
 
