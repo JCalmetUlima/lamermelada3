@@ -16,14 +16,13 @@ app.use(express.json());
 
 // Manejar creación de preferencia
 const createPreferenceHandler = async (req, res) => {
-  console.log("Creating preference for user:", req.body.userId);
   const { userId, userEmail } = req.body;
+  console.log("Creating preference for user:", userId);
 
   try {
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
-    
     if (!accessToken) {
-      console.error("Token no encontrado en process.env.MERCADOPAGO_ACCESS_TOKEN");
+      console.error("MERCADOPAGO_ACCESS_TOKEN not found in env");
       return res.status(500).json({ error: "Token de Mercado Pago no configurado." });
     }
 
@@ -34,7 +33,7 @@ const createPreferenceHandler = async (req, res) => {
       body: {
         items: [
           {
-            id: "sub-mensual-7",
+            id: "mermelada-sub-7",
             title: "Suscripción Mensual - La Mermelada",
             quantity: 1,
             unit_price: 7,
@@ -50,8 +49,9 @@ const createPreferenceHandler = async (req, res) => {
         auto_return: "approved",
         notification_url: "https://us-central1-gen-lang-client-0484978887.cloudfunctions.net/api/webhook",
         metadata: { 
-          userId: userId,
-          user_id: userId // Algunos webhooks lo esperan así
+          firebase_uid: userId,
+          user_id: userId,
+          userId: userId
         }
       },
     });
@@ -65,54 +65,61 @@ const createPreferenceHandler = async (req, res) => {
 
 // Manejar Webhook de Mercado Pago
 app.post("/webhook", async (req, res) => {
-  console.log("Webhook received. Query:", req.query, "Body:", req.body);
+  console.log("WEBHOOK HIT! Query:", req.query, "Body:", req.body);
   
-  // Mercado Pago envía el ID de diferentes formas según la versión
-  const dataId = req.body?.data?.id || req.query?.["data.id"] || req.query?.id;
-  const type = req.body?.type || req.query?.type || req.query?.topic;
+  // Extraer ID y Tipo
+  const dataId = req.body?.data?.id || req.query?.["data.id"] || req.query?.id || req.body?.id;
+  const type = req.body?.type || req.query?.type || req.query?.topic || req.body?.topic;
+
+  if (!dataId) {
+    console.log("No ID found in payload");
+    return res.status(200).send("OK - No Data");
+  }
 
   try {
-    if ((type === "payment" || type === "payment.created") && dataId) {
-      const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
-      const client = new MercadoPagoConfig({ accessToken });
-      const payment = new Payment(client);
+    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+    const client = new MercadoPagoConfig({ accessToken });
+    const payment = new Payment(client);
 
-      const paymentData = await payment.get({ id: dataId });
-      console.log("Payment status:", paymentData.status);
+    const paymentData = await payment.get({ id: dataId });
+    console.log(`Payment Status for ${dataId}: ${paymentData.status}`);
 
-      if (paymentData.status === "approved") {
-        // Intentar obtener el userId de todas las formas posibles que usa MP en metadata
-        const userId = paymentData.metadata?.user_id || 
-                       paymentData.metadata?.userId || 
-                       paymentData.metadata?.user_id_str;
-        
-        console.log("Updating subscription for user:", userId);
+    if (paymentData.status === "approved") {
+      // Intentar obtener el userId de todas las formas
+      const userId = paymentData.metadata?.firebase_uid || 
+                     paymentData.metadata?.user_id || 
+                     paymentData.metadata?.userId;
+      
+      console.log(`Webhook metadata userId found: ${userId}`);
 
-        if (userId) {
-          const userRef = db.collection("users").doc(userId);
-          await userRef.update({
-            subscriptionActive: true,
-            subscriptionStatus: "active",
-            lastPaymentId: String(dataId),
-            lastPaymentDate: admin.firestore.FieldValue.serverTimestamp()
-          });
+      if (userId) {
+        const userRef = db.collection("users").doc(userId);
+        await userRef.set({
+          subscriptionActive: true,
+          subscriptionStatus: "active",
+          lastPaymentId: String(dataId),
+          lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
 
-          // Registrar el pago para auditoría
-          await db.collection("subscriptions").add({
-            userId,
-            paymentId: String(dataId),
-            amount: paymentData.transaction_amount,
-            status: "approved",
-            createdAt: admin.firestore.FieldValue.serverTimestamp()
-          });
-        }
+        console.log(`User ${userId} subscription activated successfully.`);
+
+        // Registrar auditoría
+        await db.collection("subscriptions").doc(String(dataId)).set({
+          userId,
+          paymentId: String(dataId),
+          amount: paymentData.transaction_amount,
+          status: "approved",
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } else {
+        console.error("CRITICAL: payment found but no userId in metadata", paymentData.metadata);
       }
     }
     res.status(200).send("OK");
   } catch (error) {
-    console.error("Webhook Error details:", error);
-    // Respondemos 200 de todos modos para que MP no reintente infinitamente si es un error de código
-    res.status(200).send("Error processed");
+    console.error("Webhook Logic Error:", error);
+    res.status(200).send("Error logged but responding 200 for MP");
   }
 });
 

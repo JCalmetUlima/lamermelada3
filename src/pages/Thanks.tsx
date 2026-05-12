@@ -23,6 +23,11 @@ export default function Thanks() {
     return () => unsubscribe();
   }, [userId]);
 
+  const handleManualCheck = () => {
+    // Forzamos una recarga de la página para re-activar el listener o ver si ya cambió
+    window.location.reload();
+  };
+
   return (
     <div className="min-h-screen bg-yellow-400 flex items-center justify-center p-4">
       <motion.div 
@@ -40,24 +45,36 @@ export default function Thanks() {
           </div>
         </div>
 
-        <h1 className="text-4xl font-black text-purple-600 mb-4 italic">
-          {isReady ? '¡BIENVENIDO AL CLUB!' : 'PROCESANDO PAGO...'}
+        <h1 className="text-4xl font-black text-purple-600 mb-4 italic leading-tight">
+          {isReady ? '¡BIENVENIDO AL CLUB!' : 'ESTAMOS CONFIRMANDO TU PAGO'}
         </h1>
         
         <p className="text-gray-600 font-bold mb-8">
           {isReady 
-            ? 'Tu suscripción ya está activa. ¡Prepárate para ganar!' 
-            : 'Estamos confirmando tu suscripción con Mercado Pago. No cierres esta ventana.'}
+            ? 'Tu suscripción ya está activa. ¡Prepárate para participar en el sorteo!' 
+            : 'Esto puede tardar unos segundos. Mercado Pago nos está enviando la confirmación.'}
         </p>
 
-        {isReady && (
+        {isReady ? (
           <Link 
             to="/"
-            className="w-full bg-purple-600 text-white py-4 rounded-2xl font-black text-xl hover:bg-purple-700 transition flex items-center justify-center gap-3"
+            className="w-full bg-purple-600 text-white py-4 rounded-2xl font-black text-xl hover:bg-purple-700 transition flex items-center justify-center gap-3 shadow-[0_6px_0_rgb(88,28,135)] active:shadow-none active:translate-y-[6px]"
           >
             IR AL INICIO
             <ArrowRight />
           </Link>
+        ) : (
+          <div className="space-y-4">
+            <button 
+              onClick={handleManualCheck}
+              className="w-full bg-white border-4 border-purple-600 text-purple-600 py-3 rounded-xl font-black hover:bg-purple-50 transition"
+            >
+              YA PAGUÉ, ACTUALIZAR ESTADO
+            </button>
+            <p className="text-xs text-purple-400 font-bold">
+              Si ya realizaste el pago y no se actualiza, intenta recargar la página en unos momentos.
+            </p>
+          </div>
         )}
       </motion.div>
     </div>
