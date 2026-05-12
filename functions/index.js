@@ -13,9 +13,12 @@ app.use(express.json());
 const createPreferenceHandler = async (req, res) => {
   console.log("Creating preference for user:", req.body.userId);
   try {
+    // Obtener el token de los Secretos de Firebase
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+    
     if (!accessToken) {
-      return res.status(500).json({ error: "Token de Mercado Pago no configurado en las variables de entorno de Firebase." });
+      console.error("Token no encontrado en process.env.MERCADOPAGO_ACCESS_TOKEN");
+      return res.status(500).json({ error: "Token de Mercado Pago no configurado en Secret Manager." });
     }
 
     const client = new MercadoPagoConfig({ accessToken });
@@ -53,5 +56,5 @@ const createPreferenceHandler = async (req, res) => {
 app.post("/api/create-preference", createPreferenceHandler);
 app.post("/create-preference", createPreferenceHandler);
 
-// Exportar la app
-exports.api = functions.https.onRequest(app);
+// Exportar la app con acceso al secreto
+exports.api = functions.runWith({ secrets: ["MERCADOPAGO_ACCESS_TOKEN"] }).https.onRequest(app);
