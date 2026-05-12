@@ -1,14 +1,16 @@
 import { useState, FormEvent } from 'react';
-import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { Link, useNavigate } from 'react-router-dom';
-import { Chrome, Mail, Lock, ArrowRight } from 'lucide-react';
+import { Chrome, Mail, Lock, ArrowRight, Info } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleGoogleLogin = async () => {
@@ -22,11 +24,41 @@ export default function Login() {
 
   const handleEmailLogin = async (e: FormEvent) => {
     e.preventDefault();
+    setError('');
+    setMessage('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
       navigate('/');
-    } catch (err) {
-      setError('Credenciales incorrectas. Intenta de nuevo.');
+    } catch (err: any) {
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        setError('Credenciales incorrectas. Si te registraste con Google, intenta entrar con ese botón.');
+      } else {
+        setError('Error al iniciar sesión. Intenta de nuevo.');
+      }
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Por favor, ingresa tu correo electrónico para enviarte el enlace de recuperación.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      auth.languageCode = 'es'; // Forzar idioma español
+      await sendPasswordResetEmail(auth, email);
+      setMessage('Se ha enviado un enlace de recuperación a tu correo electrónico.');
+    } catch (err: any) {
+      if (err.code === 'auth/user-not-found') {
+        setError('No existe una cuenta con este correo.');
+      } else {
+        setError('Error al enviar el enlace. Intenta de nuevo.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -41,8 +73,16 @@ export default function Login() {
         <p className="text-purple-800 font-bold opacity-60 text-center mb-8">Ingresa para participar</p>
 
         {error && (
-          <div className="bg-red-100 border-2 border-red-500 text-red-600 p-3 rounded-xl mb-6 font-bold text-sm">
+          <div className="bg-red-100 border-2 border-red-500 text-red-600 p-3 rounded-xl mb-6 font-bold text-sm flex items-start gap-2">
+            <Info className="shrink-0 mt-0.5" size={16} />
             {error}
+          </div>
+        )}
+
+        {message && (
+          <div className="bg-green-100 border-2 border-green-500 text-green-600 p-3 rounded-xl mb-6 font-bold text-sm flex items-start gap-2">
+            <Info className="shrink-0 mt-0.5" size={16} />
+            {message}
           </div>
         )}
 
@@ -76,13 +116,24 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-sm font-black text-purple-700 mb-1">CONTRASEÑA</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-sm font-black text-purple-700">CONTRASEÑA</label>
+              <button 
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={loading}
+                className="text-xs text-purple-600 hover:underline font-bold disabled:opacity-50"
+              >
+                {loading ? 'ENVIANDO...' : '¿OLVIDASTE TU CONTRASEÑA?'}
+              </button>
+            </div>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-300" size={18} />
               <input 
                 type="password" 
                 required
                 value={password}
+                autoComplete="current-password"
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 rounded-2xl border-2 border-purple-100 focus:border-purple-600 focus:ring-0 outline-none transition-all"
                 placeholder="••••••••"
