@@ -8,7 +8,9 @@ import { db } from '../lib/firebase';
 export default function Thanks() {
   const [searchParams] = useSearchParams();
   const userId = searchParams.get('userId');
+  const paymentId = searchParams.get('payment_id') || searchParams.get('collection_id');
   const [isReady, setIsReady] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -23,9 +25,21 @@ export default function Thanks() {
     return () => unsubscribe();
   }, [userId]);
 
-  const handleManualCheck = () => {
-    // Forzamos una recarga de la página para re-activar el listener o ver si ya cambió
-    window.location.reload();
+  const handleManualCheck = async () => {
+    if (!paymentId || !userId || checking || isReady) return;
+    
+    setChecking(true);
+    try {
+      const resp = await fetch(`/api/verify-payment?paymentId=${paymentId}&userId=${userId}`);
+      const data = await resp.json();
+      if (data.success) {
+        setIsReady(true);
+      }
+    } catch (err) {
+      console.error("Error checking payment:", err);
+    } finally {
+      setChecking(false);
+    }
   };
 
   return (
@@ -67,12 +81,13 @@ export default function Thanks() {
           <div className="space-y-4">
             <button 
               onClick={handleManualCheck}
-              className="w-full bg-white border-4 border-purple-600 text-purple-600 py-3 rounded-xl font-black hover:bg-purple-50 transition"
+              disabled={checking}
+              className="w-full bg-white border-4 border-purple-600 text-purple-600 py-3 rounded-xl font-black hover:bg-purple-50 transition disabled:opacity-50"
             >
-              YA PAGUÉ, ACTUALIZAR ESTADO
+              {checking ? 'VERIFICANDO...' : 'YA PAGUÉ, ACTUALIZAR ESTADO'}
             </button>
             <p className="text-xs text-purple-400 font-bold">
-              Si ya realizaste el pago y no se actualiza, intenta recargar la página en unos momentos.
+              Si ya realizaste el pago y no se actualiza automáticamente, haz clic en el botón de arriba.
             </p>
           </div>
         )}

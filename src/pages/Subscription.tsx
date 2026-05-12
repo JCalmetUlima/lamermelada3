@@ -46,7 +46,7 @@ export default function Subscription({ user }: SubscriptionProps) {
   const handleSubscribe = async () => {
     setLoading(true);
     try {
-      const apiUrl = 'https://us-central1-gen-lang-client-0484978887.cloudfunctions.net/api/create-preference';
+      const apiUrl = '/api/create-preference';
       console.log('Iniciando suscripción a:', apiUrl);
       
       const response = await fetch(apiUrl, {
