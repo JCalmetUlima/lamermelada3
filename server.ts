@@ -37,38 +37,47 @@ async function startServer() {
     });
   });
 
-  // API Route: Send Password Reset Email via Brevo
-  app.post("/api/brevo/reset-password", async (req: express.Request, res: express.Response) => {
-    console.log("[API] Attempting to send reset email via Brevo for:", req.body?.email);
+  // API Route: Request Password Reset (Custom Flow via Brevo)
+  app.post("/api/brevo/request-reset", async (req: express.Request, res: express.Response) => {
     const { email } = req.body;
+    console.log(`[BREVO] Reset request for: ${email}`);
+    
     if (!email) {
       return res.status(400).json({ error: "El correo electrónico es requerido." });
     }
 
     try {
-      // 1. Generar el enlace oficial de Firebase
-      // Esto verifica si el usuario existe y genera un oobCode válido
-      const actionCodeSettings = {
-        url: 'https://lamermelada.pe/login',
-        handleCodeInApp: true,
-      };
-      
-      const firebaseLink = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
-      
-      // 2. Extraer el oobCode para construir nuestro propio enlace limpio
-      const urlObj = new URL(firebaseLink);
-      const oobCode = urlObj.searchParams.get('oobCode');
-      
-      if (!oobCode) {
-        throw new Error("No se pudo generar el código de recuperación.");
+      // 1. Verificar si el usuario existe en Firebase Auth
+      let userRecord;
+      try {
+        userRecord = await admin.auth().getUserByEmail(email);
+      } catch (authError: any) {
+        if (authError.code === 'auth/user-not-found') {
+          // Por seguridad, devolvemos éxito incluso si no existe, 
+          // pero en este caso el usuario quiere saber si funciona.
+          return res.status(404).json({ error: "No encontramos ninguna cuenta con ese correo." });
+        }
+        throw authError;
       }
 
-      const customResetLink = `https://lamermelada.pe/reset-password?oobCode=${oobCode}`;
+      // 2. Generar un token único
+      const resetToken = Array.from({length: 32}, () => Math.random().toString(36)[2]).join('');
+      const expiresAt = Date.now() + 3600000; // 1 hora
 
-      // 3. Enviar el correo usando la API de Brevo
+      // 3. Guardar el token en Firestore
+      await db.collection("password_resets").doc(resetToken).set({
+        email: email,
+        uid: userRecord.uid,
+        expiresAt: expiresAt,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // 4. Enviar el correo usando la API de Brevo
+      const customResetLink = `https://lamermelada.pe/reset-password?customToken=${resetToken}`;
       const BREVO_API_KEY = process.env.BREVO_API_KEY;
+      
       if (!BREVO_API_KEY) {
-        throw new Error("La configuración de correo (Brevo) no está completa.");
+        throw new Error("Configuración de Brevo (API Key) faltante en el servidor.");
       }
 
       const response = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -99,7 +108,7 @@ async function startServer() {
                   </a>
                 </div>
                 
-                <p style="font-size: 14px; opacity: 0.8; margin-bottom: 0;">Si tú no pediste esto, puedes borrar este correo con tranquilidad. Tu cuenta sigue segura.</p>
+                <p style="font-size: 14px; opacity: 0.8; margin-bottom: 0;">Si tú no pediste esto, puedes borrar este correo con tranquilidad. Tu enlace expira en 1 hora.</p>
               </div>
 
               <div style="margin-top: 32px; text-align: center; border-top: 2px solid #e9d5ff; padding-top: 24px;">
@@ -113,22 +122,74 @@ async function startServer() {
       if (!response.ok) {
         const errText = await response.text();
         console.error("Brevo API error:", errText);
-        throw new Error("Error al enviar el correo a través de Brevo.");
+        throw new Error("Error de comunicación con Brevo API.");
       }
 
-      console.log(`[API] Email de recuperación enviado a ${email}`);
-      res.json({ success: true });
+      res.json({ success: true, message: "Correo enviado correctamente." });
 
     } catch (error: any) {
-      console.error("Error enviando reset link:", error);
-      
-      // Manejar errores específicos de Firebase
-      if (error.code === 'auth/user-not-found') {
-        return res.status(404).json({ error: "No encontramos ninguna cuenta con ese correo." });
-      }
-      
+      console.error("Error en request-reset:", error);
       res.status(500).json({ error: error.message || "Error al procesar la solicitud." });
     }
+  });
+
+  // API Route: Verify Custom Token
+  app.post("/api/brevo/verify-token", async (req, res) => {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: "Token requerido" });
+
+    try {
+      const doc = await db.collection("password_resets").doc(token).get();
+      if (!doc.exists) return res.status(404).json({ error: "Token inválido" });
+      
+      const data = doc.data();
+      if (data && data.expiresAt < Date.now()) {
+        return res.status(400).json({ error: "Token expirado" });
+      }
+
+      res.json({ valid: true, email: data?.email });
+    } catch (error) {
+      res.status(500).json({ error: "Error verificando token" });
+    }
+  });
+
+  // API Route: Confirm Password Reset
+  app.post("/api/brevo/confirm-reset", async (req, res) => {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: "Faltan datos" });
+
+    try {
+      const docRef = db.collection("password_resets").doc(token);
+      const doc = await docRef.get();
+      
+      if (!doc.exists) return res.status(404).json({ error: "Token inválido o expirado" });
+      
+      const data = doc.data();
+      if (data && data.expiresAt < Date.now()) {
+        await docRef.delete();
+        return res.status(400).json({ error: "Token expirado" });
+      }
+
+      // 1. Cambiar la contraseña en Firebase Auth
+      await admin.auth().updateUser(data!.uid, {
+        password: password
+      });
+
+      // 2. Eliminar el token usado
+      await docRef.delete();
+
+      res.json({ success: true, message: "Contraseña actualizada." });
+    } catch (error: any) {
+      console.error("Error confirmando reset:", error);
+      res.status(500).json({ error: error.message || "Error al actualizar contraseña" });
+    }
+  });
+
+  // Backward compatibility alias for the old route
+  app.post("/api/brevo/reset-password", (req, res) => {
+    // Redirigir a la nueva lógica
+    req.url = "/api/brevo/request-reset";
+    app._router.handle(req, res, () => {});
   });
 
   // API Route: Webhook (DESACTIVADO)

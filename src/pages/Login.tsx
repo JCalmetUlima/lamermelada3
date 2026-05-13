@@ -48,7 +48,7 @@ export default function Login() {
     setError('');
     setMessage('');
     try {
-      const response = await fetch('/api/brevo/reset-password', {
+      const response = await fetch('/api/brevo/request-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })

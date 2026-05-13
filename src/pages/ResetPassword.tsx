@@ -17,29 +17,43 @@ export default function ResetPassword() {
   const [validCode, setValidCode] = useState(false);
 
   const oobCode = searchParams.get('oobCode');
+  const customToken = searchParams.get('customToken');
 
   useEffect(() => {
-    if (!oobCode) {
-      setError('El código de restablecimiento no es válido o ha expirado.');
+    if (!oobCode && !customToken) {
+      setError('El enlace de restablecimiento no es válido o ha expirado.');
       setVerifying(false);
       setLoading(false);
       return;
     }
 
-    const verifyCode = async () => {
+    const verifyToken = async () => {
       try {
-        await verifyPasswordResetCode(auth, oobCode);
-        setValidCode(true);
-      } catch (err) {
-        setError('El enlace de restablecimiento es inválido o ya ha sido utilizado.');
+        if (customToken) {
+          // Verificar token personalizado en el servidor
+          const response = await fetch('/api/brevo/verify-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: customToken })
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error);
+          setValidCode(true);
+        } else {
+          // Verificar oobCode estándar de Firebase (legacy)
+          await verifyPasswordResetCode(auth, oobCode!);
+          setValidCode(true);
+        }
+      } catch (err: any) {
+        setError(err.message || 'El enlace de restablecimiento es inválido o ya ha sido utilizado.');
       } finally {
         setVerifying(false);
         setLoading(false);
       }
     };
 
-    verifyCode();
-  }, [oobCode]);
+    verifyToken();
+  }, [oobCode, customToken]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -56,11 +70,24 @@ export default function ResetPassword() {
     setLoading(true);
     setError('');
     try {
-      await confirmPasswordReset(auth, oobCode!, password);
+      if (customToken) {
+        // Restablecimiento mediante el servidor (Brevo flow)
+        const response = await fetch('/api/brevo/confirm-reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: customToken, password })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+      } else {
+        // Restablecimiento estándar de Firebase
+        await confirmPasswordReset(auth, oobCode!, password);
+      }
+      
       setMessage('¡Contraseña actualizada con éxito! Ahora puedes iniciar sesión.');
       setTimeout(() => navigate('/login'), 3000);
     } catch (err: any) {
-      setError('Hubo un problema al actualizar tu contraseña. Intenta de nuevo.');
+      setError(err.message || 'Hubo un problema al actualizar tu contraseña. Intenta de nuevo.');
     } finally {
       setLoading(false);
     }
