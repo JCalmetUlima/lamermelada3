@@ -48,7 +48,7 @@ export default function Login() {
     setError('');
     setMessage('');
     try {
-      const response = await fetch('/api/send-reset-email', {
+      const response = await fetch('/api/brevo/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -60,8 +60,10 @@ export default function Login() {
         data = await response.json();
       } else {
         const text = await response.text();
-        console.error('Respuesta no JSON del servidor:', text);
-        throw new Error('El servidor respondió con un formato inesperado (HTML). Verifica la configuración del servidor backend.');
+        console.error('SERVER RESPONSE ERROR:', text);
+        // Mostrar un fragmento del texto si es HTML
+        const snippet = text.length > 100 ? text.substring(0, 100) + '...' : text;
+        throw new Error(`El servidor respondió con un formato inesperado (${contentType}). Snippet: ${snippet}`);
       }
 
       if (!response.ok) {

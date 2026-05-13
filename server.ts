@@ -20,9 +20,9 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Log middleware for all API requests
-  app.use("/api/*", (req, res, next) => {
-    console.log(`[API REQUEST] ${req.method} ${req.originalUrl}`);
+  // Log middleware for ALL requests to debug routing
+  app.use((req, res, next) => {
+    console.log(`[SERVER] ${req.method} ${req.url}`);
     next();
   });
 
@@ -38,8 +38,8 @@ async function startServer() {
   });
 
   // API Route: Send Password Reset Email via Brevo
-  app.post("/api/send-reset-email", async (req: express.Request, res: express.Response) => {
-    console.log("[API] Request received: /api/send-reset-email", { email: req.body?.email });
+  app.post("/api/brevo/reset-password", async (req: express.Request, res: express.Response) => {
+    console.log("[API] Attempting to send reset email via Brevo for:", req.body?.email);
     const { email } = req.body;
     if (!email) {
       return res.status(400).json({ error: "El correo electrónico es requerido." });
