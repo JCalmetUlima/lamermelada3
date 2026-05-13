@@ -3,9 +3,14 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import admin from "firebase-admin";
 
-// Inicializar Firebase Admin
-if (!admin.apps.length) {
-  admin.initializeApp();
+// Inicializar Firebase Admin de forma segura
+try {
+  if (!admin.apps.length) {
+    admin.initializeApp();
+    console.log("[SERVER] Firebase Admin inicializado.");
+  }
+} catch (error) {
+  console.error("[SERVER] Error inicializando Firebase Admin:", error);
 }
 const db = admin.firestore();
 
@@ -23,14 +28,18 @@ async function startServer() {
 
   // Health check for troubleshooting
   app.get("/api/health", (req, res) => {
+    console.log("[API] Health check hit");
     res.json({ 
       status: "ok", 
-      env: process.env.NODE_ENV
+      env: process.env.NODE_ENV,
+      brevoKeySet: !!process.env.BREVO_API_KEY,
+      firebaseAdminInitialized: admin.apps.length > 0
     });
   });
 
   // API Route: Send Password Reset Email via Brevo
   app.post("/api/send-reset-email", async (req: express.Request, res: express.Response) => {
+    console.log("[API] Request received: /api/send-reset-email", { email: req.body?.email });
     const { email } = req.body;
     if (!email) {
       return res.status(400).json({ error: "El correo electrónico es requerido." });
@@ -145,8 +154,15 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    console.log("[SERVER] Starting Vite in middleware mode...");
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { 
+        middlewareMode: true,
+        watch: {
+          usePolling: true,
+          interval: 100
+        }
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);

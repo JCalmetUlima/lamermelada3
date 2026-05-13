@@ -54,9 +54,18 @@ export default function Login() {
         body: JSON.stringify({ email })
       });
 
-      const data = await response.json();
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Respuesta no JSON del servidor:', text);
+        throw new Error('El servidor respondió con un formato inesperado (HTML). Verifica la configuración del servidor backend.');
+      }
+
       if (!response.ok) {
-        throw new Error(data.error || 'Error al enviar el correo');
+        throw new Error(data?.error || 'Error al enviar el correo');
       }
 
       setMessage('Se ha enviado un enlace de recuperación a tu correo electrónico vía Brevo.');
