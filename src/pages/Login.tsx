@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { Link, useNavigate } from 'react-router-dom';
 import { Chrome, Mail, Lock, ArrowRight, Info } from 'lucide-react';
@@ -48,31 +48,15 @@ export default function Login() {
     setError('');
     setMessage('');
     try {
-      const response = await fetch('/api/brevo/request-reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-
-      let data;
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-      } else {
-        const text = await response.text();
-        console.error('SERVER RESPONSE ERROR:', text);
-        // Mostrar un fragmento del texto si es HTML
-        const snippet = text.length > 100 ? text.substring(0, 100) + '...' : text;
-        throw new Error(`El servidor respondió con un formato inesperado (${contentType}). Snippet: ${snippet}`);
-      }
-
-      if (!response.ok) {
-        throw new Error(data?.error || 'Error al enviar el correo');
-      }
-
-      setMessage('Se ha enviado un enlace de recuperación a tu correo electrónico vía Brevo.');
+      auth.languageCode = 'es'; // Forzar idioma español
+      await sendPasswordResetEmail(auth, email);
+      setMessage('Se ha enviado un enlace de recuperación a tu correo electrónico.');
     } catch (err: any) {
-      setError(err.message || 'Error al enviar el enlace. Intenta de nuevo.');
+      if (err.code === 'auth/user-not-found') {
+        setError('No existe una cuenta con este correo.');
+      } else {
+        setError('Error al enviar el enlace. Intenta de nuevo.');
+      }
     } finally {
       setLoading(false);
     }

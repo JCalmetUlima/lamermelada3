@@ -47,10 +47,6 @@
     "/admins/{adminId}": {
       "schema": "object",
       "description": "Admin list"
-    },
-    "/password_resets/{tokenId}": {
-      "schema": "object",
-      "description": "Temporary tokens for custom password reset flow"
     }
   }
 }
