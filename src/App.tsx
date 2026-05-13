@@ -12,6 +12,7 @@ import Subscription from './pages/Subscription';
 import Thanks from './pages/Thanks';
 import Admin from './pages/Admin';
 import Account from './pages/Account';
+import ResetPassword from './pages/ResetPassword';
 import Navbar from './components/Navbar';
 
 export default function App() {
@@ -67,6 +68,7 @@ export default function App() {
           <Route path="/register" element={user ? <Navigate to="/subscription" /> : <Register />} />
           <Route path="/subscription" element={user ? <Subscription user={user} /> : <Navigate to="/login" />} />
           <Route path="/account" element={user ? <Account user={user} /> : <Navigate to="/login" />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/thanks" element={<Thanks />} />
           <Route path="/admin" element={isAdmin ? <Admin /> : <Navigate to="/" />} />
         </Routes>
