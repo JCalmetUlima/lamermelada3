@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { Link, useNavigate } from 'react-router-dom';
 import { Chrome, Mail, Lock, ArrowRight, Info } from 'lucide-react';
@@ -48,15 +48,20 @@ export default function Login() {
     setError('');
     setMessage('');
     try {
-      auth.languageCode = 'es'; // Forzar idioma español
-      await sendPasswordResetEmail(auth, email);
-      setMessage('Se ha enviado un enlace de recuperación a tu correo electrónico.');
-    } catch (err: any) {
-      if (err.code === 'auth/user-not-found') {
-        setError('No existe una cuenta con este correo.');
-      } else {
-        setError('Error al enviar el enlace. Intenta de nuevo.');
+      const response = await fetch('/api/send-reset-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al enviar el correo');
       }
+
+      setMessage('Se ha enviado un enlace de recuperación a tu correo electrónico vía Brevo.');
+    } catch (err: any) {
+      setError(err.message || 'Error al enviar el enlace. Intenta de nuevo.');
     } finally {
       setLoading(false);
     }
