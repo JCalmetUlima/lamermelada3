@@ -47,17 +47,23 @@ export default function Subscription({ user }: SubscriptionProps) {
         throw new Error('No se pudo generar el token de pago');
       }
 
+      // Wait for the modal background to be ready or just wait a tick
       setShowPaymentForm(true);
 
-      // Wait for the modal background to be ready or just wait a tick
-      setTimeout(() => {
+      let attempts = 0;
+      const checkKR = setInterval(() => {
+        attempts++;
         if (window.KR) {
+          clearInterval(checkKR);
           window.KR.setFormToken(formToken);
           
-          // Optional: handle payment event inside the component
           window.KR.onSubmit((paymentData: any) => {
             console.log('Payment data submitted:', paymentData);
           });
+        }
+        if (attempts > 20) {
+          clearInterval(checkKR);
+          setError('La pasarela de pagos no se cargó correctamente. Por favor recarga la página.');
         }
       }, 500);
 

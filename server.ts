@@ -12,12 +12,17 @@ const db = admin.firestore();
 import axios from "axios";
 
 // Izipay Credentials
-const IZIPAY_SHOP_ID = process.env.IZIPAY_SHOP_ID;
-const IZIPAY_PASSWORD = process.env.IZIPAY_TEST_PASSWORD;
+const getIzipayCreds = () => ({
+  shopId: process.env.IZIPAY_SHOP_ID,
+  password: process.env.IZIPAY_TEST_PASSWORD
+});
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  console.log("Starting server with Shop ID:", process.env.IZIPAY_SHOP_ID ? "PRESENT" : "MISSING");
+  console.log("Izipay Password:", process.env.IZIPAY_TEST_PASSWORD ? "PRESENT" : "MISSING");
 
   app.use(express.json());
 
@@ -41,8 +46,15 @@ async function startServer() {
         return res.status(400).json({ error: "Email es requerido" });
       }
 
+      const { shopId, password } = getIzipayCreds();
+
+      if (!shopId || !password) {
+        console.error("Missing Izipay credentials in environment variables");
+        return res.status(500).json({ error: "Configuración de pasarela incompleta" });
+      }
+
       // Create a Subscription/Payment Token
-      const auth = Buffer.from(`${IZIPAY_SHOP_ID}:${IZIPAY_PASSWORD}`).toString('base64');
+      const auth = Buffer.from(`${shopId}:${password}`).toString('base64');
       
       const response = await axios.post(
         "https://api.micuentaweb.pe/api-payment/V4/Charge/CreatePayment",
