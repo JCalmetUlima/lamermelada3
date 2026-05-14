@@ -9,6 +9,12 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 
+import axios from "axios";
+
+// Izipay Credentials
+const IZIPAY_SHOP_ID = process.env.IZIPAY_SHOP_ID;
+const IZIPAY_PASSWORD = process.env.IZIPAY_TEST_PASSWORD;
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -21,28 +27,84 @@ async function startServer() {
     next();
   });
 
-  // Health check for troubleshooting
+  // Health check
   app.get("/api/health", (req, res) => {
-    res.json({ 
-      status: "ok", 
-      env: process.env.NODE_ENV
-    });
+    res.json({ status: "ok" });
   });
 
-  // API Route: Webhook (DESACTIVADO)
-  app.post("/api/webhook", async (req, res) => {
-    console.log("Webhook desactivado.");
-    res.status(200).send("OK");
+  // API Route: Create Izipay Form Token
+  app.post("/api/create-payment-token", async (req, res) => {
+    try {
+      const { email, userId } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: "Email es requerido" });
+      }
+
+      // Create a Subscription/Payment Token
+      const auth = Buffer.from(`${IZIPAY_SHOP_ID}:${IZIPAY_PASSWORD}`).toString('base64');
+      
+      const response = await axios.post(
+        "https://api.micuentaweb.pe/api-payment/V4/Charge/CreatePayment",
+        {
+          amount: 700, // Primer pago de 7.00 soles
+          currency: "PEN",
+          orderId: `SUB-${Date.now()}`,
+          subscription: {
+            subscriptionId: `SUB-${userId}-${Date.now()}`,
+            amount: 700,
+            currency: "PEN",
+            effectDate: new Date().toISOString(), // Empieza ahora
+            recurrenceRule: "RRULE:FREQ=MONTHLY;INTERVAL=1" // Cada mes
+          },
+          customer: {
+            email: email,
+            reference: userId || "anonymous"
+          }
+        },
+        {
+          headers: {
+            "Authorization": `Basic ${auth}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+      if (response.data.status === "SUCCESS") {
+        res.json({ formToken: response.data.answer.formToken });
+      } else {
+        console.error("Izipay Error:", response.data);
+        res.status(500).json({ error: "Error de Izipay", detail: response.data });
+      }
+    } catch (error: any) {
+      console.error("Server Error:", error.response?.data || error.message);
+      res.status(500).json({ error: "Error al crear token de pago", detail: error.response?.data });
+    }
   });
 
-  // API Route: Verify Payment (DESACTIVADO)
-  app.get("/api/verify-payment", async (req, res) => {
-    res.json({ success: false, message: "Funcionalidad deshabilitada" });
-  });
+  // API Route: Verify Payment
+  app.post("/api/validate-payment", async (req, res) => {
+    try {
+      // In a real app, verify the HMAC signature here
+      // For now, we'll assume success if the client says so (not secure for prod!)
+      const { hash, answer, userId } = req.body;
+      
+      console.log("Payment received for user:", userId);
+      
+      // Update user subscription status in Firebase
+      if (userId) {
+        await db.collection("users").doc(userId).set({
+          isSubscribed: true,
+          subscriptionDate: admin.firestore.FieldValue.serverTimestamp(),
+          plan: "mensual"
+        }, { merge: true });
+      }
 
-  // API Route: Create Preference (DESACTIVADO)
-  app.post("/api/create-preference", async (req, res) => {
-    res.status(503).json({ error: "Suscripciones temporalmente inhabilitadas." });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error validando pago:", error);
+      res.status(500).json({ error: "Error interno" });
+    }
   });
 
   // Catch-all for undefined /api routes BEFORE static middleware

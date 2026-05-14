@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { db } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { CreditCard, Star, ShieldCheck, Trophy, ArrowRight, AlertCircle, Clock } from 'lucide-react';
-import { motion } from 'motion/react';
-import { useSearchParams } from 'react-router-dom';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { CreditCard, Star, ShieldCheck, Trophy, ArrowRight, AlertCircle, Clock, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import axios from 'axios';
+
+declare global {
+  interface Window {
+    KR: any;
+  }
+}
 
 interface SubscriptionProps {
   user: User;
@@ -13,43 +19,59 @@ interface SubscriptionProps {
 export default function Subscription({ user }: SubscriptionProps) {
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
-  const [searchParams] = useSearchParams();
-  const statusParam = searchParams.get('status');
-  const statusDetail = searchParams.get('status_detail');
-
-  const getStatusMessage = () => {
-    switch (statusDetail) {
-      case 'cc_rejected_insufficient_amount':
-        return 'Tu tarjeta no tiene fondos suficientes.';
-      case 'cc_rejected_bad_filled_security_code':
-        return 'El código de seguridad es incorrecto.';
-      case 'cc_rejected_bad_filled_date':
-        return 'La fecha de expiración es incorrecta.';
-      case 'cc_rejected_call_for_authorize':
-        return 'Debes autorizar el pago con tu banco.';
-      default:
-        return 'El pago fue rechazado. Intenta con otra tarjeta.';
-    }
-  };
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      const docRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setUserProfile(docSnap.data());
+    // Listen for real-time updates to the user profile
+    const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (doc) => {
+      if (doc.exists()) {
+        setUserProfile(doc.data());
       }
-    };
-    fetchProfile();
+    });
+    return () => unsubscribe();
   }, [user.uid]);
 
   const handleSubscribe = async () => {
-    alert('Las suscripciones están temporalmente deshabilitadas. Pronto anunciaremos un nuevo método de pago.');
+    setLoading(true);
+    setError('');
+    try {
+      const response = await axios.post('/api/create-payment-token', {
+        email: user.email,
+        userId: user.uid
+      });
+
+      const { formToken } = response.data;
+
+      if (!formToken) {
+        throw new Error('No se pudo generar el token de pago');
+      }
+
+      setShowPaymentForm(true);
+
+      // Wait for the modal background to be ready or just wait a tick
+      setTimeout(() => {
+        if (window.KR) {
+          window.KR.setFormToken(formToken);
+          
+          // Optional: handle payment event inside the component
+          window.KR.onSubmit((paymentData: any) => {
+            console.log('Payment data submitted:', paymentData);
+          });
+        }
+      }, 500);
+
+    } catch (err: any) {
+      console.error('Error starting payment:', err);
+      setError('Hubo un error al conectar con la pasarela de pagos. Por favor, intenta de nuevo.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-purple-50 p-6 flex items-center justify-center">
-      <div className="max-w-4xl w-full grid md:grid-cols-2 bg-white rounded-[2rem] border-4 border-purple-600 shadow-2xl overflow-hidden">
+    <div className="min-h-[calc(100vh-80px)] bg-purple-50 p-6 flex items-center justify-center relative overflow-hidden">
+      <div className="max-w-4xl w-full grid md:grid-cols-2 bg-white rounded-[2rem] border-4 border-purple-600 shadow-2xl overflow-hidden relative z-10">
         {/* Info Column */}
         <div className="bg-yellow-400 p-12 border-b-4 md:border-b-0 md:border-r-4 border-purple-600">
           <div className="mb-8">
@@ -93,33 +115,22 @@ export default function Subscription({ user }: SubscriptionProps) {
             </div>
           </div>
 
-          {statusParam === 'failure' && (
+          {error && (
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="bg-red-100 border-2 border-red-500 p-4 rounded-xl mb-6 text-red-700 font-bold flex items-center gap-3"
             >
               <AlertCircle size={20} />
-              <span>{getStatusMessage()}</span>
+              <span>{error}</span>
             </motion.div>
           )}
 
-          {statusParam === 'pending' && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-blue-100 border-2 border-blue-500 p-4 rounded-xl mb-6 text-blue-700 font-bold flex items-center gap-3"
-            >
-              <Clock size={20} />
-              <span>El pago está pendiente de aprobación.</span>
-            </motion.div>
-          )}
-
-          {userProfile?.subscriptionActive ? (
+          {userProfile?.isSubscribed ? (
             <div className="bg-green-100 border-4 border-green-600 p-6 rounded-3xl text-center">
               <ShieldCheck size={48} className="mx-auto text-green-600 mb-4" />
               <h4 className="text-2xl font-black text-green-700 mb-1">¡ESTÁS ACTIVO!</h4>
-              <p className="font-bold text-green-600 opacity-80">Ya estás participando en el próximo sorteo.</p>
+              <p className="font-bold text-green-600 opacity-80">Ya estás participando en el próximo sorteo de S/ 1,000.</p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -128,7 +139,7 @@ export default function Subscription({ user }: SubscriptionProps) {
                   <CreditCard className="text-purple-600 shrink-0" />
                   <div>
                     <h4 className="font-bold text-purple-900">Pasarela Segura</h4>
-                    <p className="text-sm text-purple-700">Paga con Tarjeta o Efectivo vía Mercado Pago.</p>
+                    <p className="text-sm text-purple-700">Paga con Tarjeta vía Izipay.</p>
                   </div>
                 </div>
               </div>
@@ -156,6 +167,59 @@ export default function Subscription({ user }: SubscriptionProps) {
           )}
         </div>
       </div>
+
+      {/* Izipay Embedded Payment Form Modal */}
+      <AnimatePresence>
+        {showPaymentForm && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-purple-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[2.5rem] border-4 border-purple-600 p-8 w-full max-w-md relative"
+            >
+              <button 
+                onClick={() => setShowPaymentForm(false)}
+                className="absolute right-6 top-6 text-purple-400 hover:text-purple-600 transition-colors"
+              >
+                <X size={32} />
+              </button>
+
+              <div className="text-center mb-8">
+                <h3 className="text-2xl font-black text-purple-600 mb-2 uppercase">Pago Seguro</h3>
+                <p className="text-purple-400 font-bold">Completa tus datos de tarjeta para suscribirte.</p>
+              </div>
+
+              {/* Izipay Element */}
+              <div className="flex justify-center min-h-[400px]">
+                <div 
+                  className="kr-embedded" 
+                  kr-form-token=""
+                >
+                  {/* The form elements */}
+                  <div className="kr-pan"></div>
+                  <div className="kr-expiry"></div>
+                  <div className="kr-security-code"></div>
+                  <div className="kr-card-holder-name"></div>
+                  <div className="kr-email"></div>
+                  
+                  <button className="kr-payment-button"></button>
+                  <div className="kr-form-error"></div>
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-center items-center gap-4 border-t-2 border-purple-50 pt-6">
+                <img src="https://micuentaweb.pe/static/img/visa-mc-amex-diners.png" alt="Tarjetas" className="h-6 opacity-60 grayscale hover:grayscale-0 transition-all" />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

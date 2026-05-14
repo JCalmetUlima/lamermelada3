@@ -6,6 +6,71 @@
   --font-display: "Anton", sans-serif;
 }
 
+/* Izipay Custom Styles */
+.kr-embedded {
+  width: 100% !important;
+  max-width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.75rem !important;
+  font-family: inherit !important;
+}
+
+.kr-embedded .kr-pan,
+.kr-embedded .kr-expiry,
+.kr-embedded .kr-security-code,
+.kr-embedded .kr-card-holder-name,
+.kr-embedded .kr-email,
+.kr-embedded select {
+  background: white !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 4px !important;
+  padding: 0.5rem 0.75rem !important;
+  height: 44px !important;
+  transition: border-color 0.2s !important;
+  box-sizing: border-box !important;
+}
+
+.kr-embedded .kr-pan:focus-within,
+.kr-embedded .kr-expiry:focus-within,
+.kr-embedded .kr-security-code:focus-within,
+.kr-embedded .kr-card-holder-name:focus-within,
+.kr-embedded .kr-email:focus-within {
+  border-color: #9333ea !important;
+  outline: none !important;
+}
+
+.kr-embedded .kr-payment-button {
+  background-color: #9333ea !important;
+  color: white !important;
+  border-radius: 1rem !important;
+  padding: 1rem !important;
+  font-weight: 900 !important;
+  font-size: 1.125rem !important;
+  text-transform: uppercase !important;
+  border: none !important;
+  box-shadow: 0 5px 0 rgb(107, 33, 168) !important;
+  transition: all 0.1s !important;
+  cursor: pointer !important;
+  margin-top: 1rem !important;
+  height: auto !important;
+}
+
+.kr-embedded .kr-payment-button:active {
+  box-shadow: none !important;
+  transform: translateY(5px) !important;
+}
+
+.kr-embedded .kr-form-error {
+  color: #dc2626 !important;
+  font-weight: bold !important;
+  font-size: 0.875rem !important;
+  background: #fee2e2 !important;
+  border: 1px solid #ef4444 !important;
+  padding: 0.5rem !important;
+  border-radius: 0.5rem !important;
+}
+
 @utility custom-scrollbar {
   &::-webkit-scrollbar {
     width: 6px;
