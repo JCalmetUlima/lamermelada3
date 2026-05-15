@@ -1,19 +1,33 @@
+console.log("SERVER: Iniciando ejecución de server.ts...");
+
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import admin from "firebase-admin";
 
-// Inicializar Firebase Admin
-if (!admin.apps.length) {
-  admin.initializeApp();
+// Helper to get Firestore lazily
+let _db: admin.firestore.Firestore | null = null;
+function getDb() {
+  if (!_db) {
+    try {
+      if (!admin.apps.length) {
+        console.log("SERVER: Inicializando Firebase Admin...");
+        admin.initializeApp();
+      }
+      _db = admin.firestore();
+    } catch (e) {
+      console.error("SERVER: Error al obtener Firestore:", e);
+      throw e;
+    }
+  }
+  return _db;
 }
-const db = admin.firestore();
 
 import axios from "axios";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import crypto from "crypto";
-import { onRequest } from "firebase-functions/v2/https";
+import * as functions from "firebase-functions/v1";
 
 // Izipay Credentials
 const getIzipayCreds = () => ({
@@ -153,6 +167,7 @@ apiRouter.post("/validate-payment-hash", async (req, res) => {
 
     const answer = typeof clientAnswer === 'string' ? JSON.parse(clientAnswer) : clientAnswer;
     if (answer.orderStatus === "PAID" && userId) {
+      const db = getDb();
       await db.collection("users").doc(userId).set({
         isSubscribed: true,
         subscriptionActive: true,
@@ -203,6 +218,7 @@ apiRouter.post("/ipn", async (req, res) => {
     const userId = answer.customer?.reference;
 
     if (status === "PAID" && userId && userId !== "anonymous") {
+      const db = getDb();
       await db.collection("users").doc(userId).set({
         isSubscribed: true,
         subscriptionActive: true,
@@ -227,35 +243,28 @@ app.all("/api/*", (req, res) => {
   res.status(404).json({ error: "Ruta no encontrada", path: req.url });
 });
 
-// Local dev & vite middleware only runs if NOT deployed to Cloud Functions
-async function startViteServer() {
-  if (process.env.NODE_ENV !== "production" && !process.env.FUNCTION_TARGET) {
+// Start server
+if (!process.env.FUNCTION_TARGET) {
+  if (process.env.NODE_ENV !== "production") {
     console.log(`Server v${SERVER_VERSION} starting local Vite server...`);
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-    
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
   } else {
-    // Modo producción local / o estático si no estamos en serverless
-    if (!process.env.FUNCTION_TARGET) {
-      const distPath = path.join(process.cwd(), 'dist');
-      app.use(express.static(distPath));
-      app.get('*', (req, res) => {
-        res.sendFile(path.join(distPath, 'index.html'));
-      });
-      app.listen(PORT, "0.0.0.0", () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-      });
-    }
+    console.log(`Server v${SERVER_VERSION} starting production mode...`);
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
   }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on port ${PORT}`);
+  });
 }
 
-startViteServer();
-
-// Cloud Function export
-export const api = onRequest({ region: "us-central1" }, app);
+// Cloud Function export (v1)
+export const api = functions.region("us-central1").https.onRequest(app);
