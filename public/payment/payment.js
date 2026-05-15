@@ -123,20 +123,56 @@
   }
 
   function initKrypton(publicKey, formToken) {
+    console.log('Iniciando carga de la biblioteca Izipay...');
+    
+    // Si ya existe el script, lo removemos para asegurar que se reinicie con la nueva llave si hiciera falta
+    var existingScript = document.getElementById('izipay-script');
+    if (existingScript) existingScript.remove();
+
+    var script = document.createElement('script');
+    script.id = 'izipay-script';
+    script.type = 'text/javascript';
+    // URL estable para el mercado peruano
+    script.src = 'https://static.micuentaweb.pe/static/js/krypton-client/V4.0/stable/kr-payment-form.min.js';
+    
+    // IMPORTANTE: Atributos requeridos por Krypton
+    script.setAttribute('kr-public-key', publicKey);
+    script.setAttribute('kr-post-url-callback', state.backendUrl.replace('create-payment-token', 'validate-payment-hash'));
+    script.setAttribute('kr-language', 'es-PE');
+    
+    script.onload = function() {
+      console.log('Biblioteca Izipay cargada. Esperando a KR...');
+      
+      var checkKR = setInterval(function() {
+        if (typeof KR !== 'undefined') {
+          clearInterval(checkKR);
+          setupForm(formToken);
+        }
+      }, 100);
+    };
+
+    script.onerror = function() {
+      document.getElementById('checkout-spinner').style.display = 'none';
+      showError('checkout-error', 'No se pudo cargar la biblioteca de pagos. Verifica tu conexión.');
+    };
+
+    document.head.appendChild(script);
+  }
+
+  function setupForm(formToken) {
     if (typeof KR === 'undefined') {
-      showError('checkout-error', 'Biblioteca de Izipay no cargada.');
+      showError('checkout-error', 'Error interno: KR no definido tras carga.');
       return;
     }
 
     KR.setFormConfig({
       formToken: formToken,
-      'kr-public-key': publicKey,
       'kr-language': 'es-PE'
     })
       .then(function () {
         return KR.attachForm('#kr-embedded');
       })
-      .then(function () {
+      .then(function (result) {
         document.getElementById('checkout-spinner').style.display = 'none';
         document.getElementById('kr-embedded').style.display = 'block';
         KR.onSubmit(onPaid);
@@ -144,7 +180,7 @@
       })
       .catch(function (err) {
         document.getElementById('checkout-spinner').style.display = 'none';
-        showError('checkout-error', 'Error Krypton: ' + (err.message || err));
+        showError('checkout-error', 'Error en formulario: ' + (err.message || err));
       });
   }
 
