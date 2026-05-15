@@ -32,47 +32,52 @@ export default function Subscription({ user }: SubscriptionProps) {
     return () => unsubscribe();
   }, [user.uid]);
 
-  const handleSubscribe = async () => {
-    setLoading(true);
+  const handleSubscribe = () => {
+    setShowPaymentForm(true);
     setError('');
-    try {
-      const response = await axios.post('/api/create-payment-token', {
-        email: user.email,
-        userId: user.uid
-      });
+  };
 
-      const { formToken } = response.data;
-
-      if (!formToken) {
-        throw new Error('No se pudo generar el token de pago');
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'PAYMENT_RESULT') {
+        const result = event.data;
+        if (result.status === 'PAID') {
+          // El servidor actualiza Firestore vía webhook o nosotros lo hacemos aquí para feedback rápido
+          console.log('Pago exitoso:', result);
+          // Opcional: Cerrar después de unos segundos
+          setTimeout(() => setShowPaymentForm(false), 3000);
+        } else if (result.status === 'ERROR') {
+          setError(result.message || 'Error en la pasarela de pagos');
+        }
+      } else if (event.data?.type === 'CLOSE_PAYMENT') {
+        setShowPaymentForm(false);
       }
+    };
 
-      // Wait for the modal background to be ready or just wait a tick
-      setShowPaymentForm(true);
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
-      let attempts = 0;
-      const checkKR = setInterval(() => {
-        attempts++;
-        if (window.KR) {
-          clearInterval(checkKR);
-          window.KR.setFormToken(formToken);
-          
-          window.KR.onSubmit((paymentData: any) => {
-            console.log('Payment data submitted:', paymentData);
-          });
-        }
-        if (attempts > 20) {
-          clearInterval(checkKR);
-          setError('La pasarela de pagos no se cargó correctamente. Por favor recarga la página.');
-        }
-      }, 500);
-
-    } catch (err: any) {
-      console.error('Error starting payment:', err);
-      setError('Hubo un error al conectar con la pasarela de pagos. Por favor, intenta de nuevo.');
-    } finally {
-      setLoading(false);
-    }
+  const onIframeLoad = (e: any) => {
+    const iframe = e.target;
+    iframe.contentWindow?.postMessage({
+      type: 'INIT_PAYMENT',
+      customer: {
+        firstName: user.displayName?.split(' ')[0] || userProfile?.name?.split(' ')[0] || 'Usuario',
+        lastName: user.displayName?.split(' ').slice(1).join(' ') || userProfile?.name?.split(' ').slice(1).join(' ') || 'Mermelada',
+        email: user.email,
+        phoneNumber: '+51999999999',
+        identityType: 'DNI',
+        identityCode: '00000000'
+      },
+      order: { 
+        orderId: `SUB-${user.uid}-${Date.now()}`, 
+        amount: 7.00, 
+        currency: 'PEN' 
+      },
+      backendUrl: `${window.location.origin}/api/create-payment-token`,
+      allowedOrigin: window.location.origin
+    }, '*');
   };
 
   return (
@@ -201,22 +206,15 @@ export default function Subscription({ user }: SubscriptionProps) {
                 <p className="text-purple-400 font-bold">Completa tus datos de tarjeta para suscribirte.</p>
               </div>
 
-              {/* Izipay Element */}
-              <div className="flex justify-center min-h-[400px]">
-                <div 
-                  className="kr-embedded" 
-                  kr-form-token=""
-                >
-                  {/* The form elements */}
-                  <div className="kr-pan"></div>
-                  <div className="kr-expiry"></div>
-                  <div className="kr-security-code"></div>
-                  <div className="kr-card-holder-name"></div>
-                  <div className="kr-email"></div>
-                  
-                  <button className="kr-payment-button"></button>
-                  <div className="kr-form-error"></div>
-                </div>
+              {/* Izipay Iframe Pasarela */}
+              <div className="w-full min-h-[600px] bg-gray-50 rounded-2xl overflow-hidden border-2 border-purple-100">
+                <iframe
+                  src="/payment/payment.html"
+                  onLoad={onIframeLoad}
+                  style={{ width: "100%", height: "600px", border: "none" }}
+                  title="Pasarela de pagos"
+                  id="izipay-iframe"
+                />
               </div>
 
               <div className="mt-8 flex justify-center items-center gap-4 border-t-2 border-purple-50 pt-6">

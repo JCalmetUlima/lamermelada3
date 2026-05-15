@@ -1,0 +1,138 @@
+/* Base */
+body {
+  font-family: inherit;
+  font-size: 14px;
+  background-color: transparent; /* Permite ver el fondo del modal */
+}
+
+/* Vistas — solo la activa es visible */
+.view { display: none; }
+.view.active { display: block; }
+
+/* Cabeceras de sección */
+.section-header {
+  background-color: #f8f8f8;
+  font-weight: 800;
+  font-size: 0.75rem;
+  color: #9333ea;
+  letter-spacing: 0.05em;
+}
+
+.text-purple {
+  color: #9333ea;
+}
+
+/* Campos readonly */
+.form-control[readonly] {
+  background-color: #f3f4f6;
+  border-color: #e5e7eb;
+  color: #4b5563;
+  font-weight: 600;
+  border-radius: 0.75rem;
+}
+
+/* Botón principal Izipay (Purple style like the app) */
+.btn-izipay {
+  background-color: #9333ea !important;
+  border-color: #9333ea !important;
+  color: #fff !important;
+  height: 60px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  border-radius: 1rem !important;
+  box-shadow: 0 5px 0 rgb(107,33,168) !important;
+  transition: all 0.1s !important;
+  border: none !important;
+}
+
+.btn-izipay:hover {
+  background-color: #7e22ce !important;
+  border-color: #7e22ce !important;
+  transform: translateY(1px);
+  box-shadow: 0 4px 0 rgb(107,33,168) !important;
+}
+
+.btn-izipay:active {
+  transform: translateY(5px) !important;
+  box-shadow: none !important;
+}
+
+/* Logos de tarjetas */
+.card-logos img {
+  height: 28px;
+  margin: 0 6px;
+  opacity: 0.85;
+}
+
+/* Spinner de carga */
+.spinner-wrapper {
+  padding: 40px 0;
+}
+
+.text-danger {
+  color: #9333ea !important;
+}
+
+/* Resultado: ícono de estado */
+.result-icon {
+  font-size: 3rem;
+  line-height: 1;
+}
+.result-icon.paid::before { content: "✅"; }
+.result-icon.failed::before { content: "❌"; }
+.result-icon.error::before { content: "⚠️"; }
+
+/* Tabla de resultado */
+.result-table th {
+  width: 40%;
+  background-color: #f8f8f8;
+  font-size: 0.82rem;
+  color: #555;
+}
+.result-table td {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Respuesta técnica */
+pre {
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  max-height: 260px;
+  overflow-y: auto;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Krypton Custom Styling to match the app */
+.kr-embedded {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1rem !important;
+}
+
+.kr-payment-button {
+  background-color: #9333ea !important;
+  color: white !important;
+  border-radius: 1rem !important;
+  padding: 1rem !important;
+  font-weight: 900 !important;
+  border: none !important;
+  box-shadow: 0 5px 0 rgb(107,33,168) !important;
+  margin-top: 1rem !important;
+}
+
+.kr-payment-button:active {
+  box-shadow: none !important;
+  transform: translateY(5px) !important;
+}
+
+/* Responsive */
+@media (max-width: 576px) {
+  .card-logos img { height: 22px; margin: 0 4px; }
+  .btn-izipay { font-size: 0.9rem; }
+}

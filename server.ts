@@ -37,43 +37,50 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
-  // API Route: Create Izipay Form Token
+  // API Route: Create Izipay Form Token (Adapted for iframe manual)
   app.post("/api/create-payment-token", async (req, res) => {
     try {
-      const { email, userId } = req.body;
+      const { amount, currency, orderId, customer, userId } = req.body;
+      const email = customer?.email || req.body.email;
 
       if (!email) {
         return res.status(400).json({ error: "Email es requerido" });
       }
 
       const { shopId, password } = getIzipayCreds();
+      const publicKey = process.env.VITE_IZIPAY_PUBLIC_KEY;
 
-      if (!shopId || !password) {
+      if (!shopId || !password || !publicKey) {
         console.error("Missing Izipay credentials in environment variables");
-        return res.status(500).json({ error: "Configuración de pasarela incompleta" });
+        return res.status(500).json({ error: "Configuración de pasarela incompleta (shopId, password o publicKey)" });
       }
 
       // Create a Subscription/Payment Token
       const auth = Buffer.from(`${shopId}:${password}`).toString('base64');
       
+      const payload = {
+        amount: amount || 700, 
+        currency: currency || "PEN",
+        orderId: orderId || `SUB-${Date.now()}`,
+        subscription: {
+          subscriptionId: `REF-${userId || Date.now()}-${Date.now()}`,
+          amount: amount || 700,
+          currency: currency || "PEN",
+          effectDate: new Date().toISOString(),
+          recurrenceRule: "RRULE:FREQ=MONTHLY;INTERVAL=1"
+        },
+        customer: {
+          email: email,
+          reference: userId || "anonymous",
+          billingDetails: customer?.billingDetails || {}
+        }
+      };
+
+      console.log("Creating Izipay payment with payload:", JSON.stringify(payload, null, 2));
+
       const response = await axios.post(
         "https://api.micuentaweb.pe/api-payment/V4/Charge/CreatePayment",
-        {
-          amount: 700, // Primer pago de 7.00 soles
-          currency: "PEN",
-          orderId: `SUB-${Date.now()}`,
-          subscription: {
-            subscriptionId: `SUB-${userId}-${Date.now()}`,
-            amount: 700,
-            currency: "PEN",
-            effectDate: new Date().toISOString(), // Empieza ahora
-            recurrenceRule: "RRULE:FREQ=MONTHLY;INTERVAL=1" // Cada mes
-          },
-          customer: {
-            email: email,
-            reference: userId || "anonymous"
-          }
-        },
+        payload,
         {
           headers: {
             "Authorization": `Basic ${auth}`,
@@ -83,10 +90,13 @@ async function startServer() {
       );
 
       if (response.data.status === "SUCCESS") {
-        res.json({ formToken: response.data.answer.formToken });
+        res.json({ 
+          formToken: response.data.answer.formToken,
+          publicKey: publicKey
+        });
       } else {
         console.error("Izipay Error:", response.data);
-        res.status(500).json({ error: "Error de Izipay", detail: response.data });
+        res.status(502).json({ error: "Error de Izipay", detail: response.data });
       }
     } catch (error: any) {
       console.error("Server Error:", error.response?.data || error.message);

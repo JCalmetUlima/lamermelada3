@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pasarela de Pagos</title>
+
+  <!-- Bootstrap 4 (as requested in manual) -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+
+  <!-- Krypton Client V4.0 — CDN Izipay Perú -->
+  <link rel="stylesheet"
+    href="https://static.micuentaweb.pe/static/js/krypton-client/V4.0/ext/neon-reset.min.css" />
+  <script
+    src="https://static.micuentaweb.pe/static/js/krypton-client/V4.0/ext/neon.js">
+  </script>
+
+  <link rel="stylesheet" href="payment.css" />
+</head>
+<body>
+
+  <!-- NAVBAR (Customized to app purple) -->
+  <nav class="navbar navbar-dark" style="background-color:#9333ea; border-bottom: 4px solid #6b21a8;">
+    <span class="navbar-brand font-weight-bold">
+      izipay <small style="font-size:0.6rem;opacity:0.8;">Pasarela de Pagos</small>
+    </span>
+  </nav>
+
+  <div class="container py-4">
+
+    <!-- ================================================ -->
+    <!-- VISTA 1: Confirmación de datos del cliente       -->
+    <!-- ================================================ -->
+    <section id="view-capture" class="view">
+      <div class="card shadow-sm mb-3 border-0 rounded-xl overflow-hidden">
+        <div class="card-header section-header">DATOS DEL CLIENTE</div>
+        <div class="card-body bg-light/30">
+          <div class="form-row">
+            <div class="form-group col-md-6 text-sm">
+              <label class="font-weight-bold text-purple">Nombre</label>
+              <input id="field-firstName" type="text" class="form-control" readonly />
+            </div>
+            <div class="form-group col-md-6 text-sm">
+              <label class="font-weight-bold text-purple">Apellido</label>
+              <input id="field-lastName" type="text" class="form-control" readonly />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-12 text-sm">
+              <label class="font-weight-bold text-purple">Correo electrónico</label>
+              <input id="field-email" type="email" class="form-control" readonly />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mb-4 border-0 rounded-xl overflow-hidden">
+        <div class="card-header section-header">DETALLE DEL PLAN</div>
+        <div class="card-body bg-light/30">
+          <div class="form-row">
+            <div class="form-group col-md-12 text-center py-2">
+              <h5 class="font-weight-bold mb-1">MEMBRESÍA MENSUAL</h5>
+              <div class="text-purple display-4 font-weight-bold">S/ 7.00</div>
+              <p class="text-muted small">Renovación automática cada mes</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="capture-error" class="alert alert-danger d-none"></div>
+
+      <button id="btn-continue" class="btn btn-primary btn-block btn-lg btn-izipay shadow-lg">
+        CONTINUAR AL PAGO
+      </button>
+    </section>
+
+    <!-- ================================================ -->
+    <!-- VISTA 2: Widget de pago Krypton                  -->
+    <!-- ================================================ -->
+    <section id="view-checkout" class="view">
+      <div class="card shadow-sm">
+        <div class="card-header section-header text-center">
+          Pago con tarjeta de crédito / débito
+        </div>
+        <div class="card-body text-center">
+          <div class="card-logos mb-3">
+            <img src="https://static.micuentaweb.pe/static/img/payment/visa.png" alt="Visa" />
+            <img src="https://static.micuentaweb.pe/static/img/payment/mastercard.png" alt="Mastercard" />
+            <img src="https://static.micuentaweb.pe/static/img/payment/amex.png" alt="Amex" />
+          </div>
+
+          <!-- Spinner mientras carga Krypton -->
+          <div id="checkout-spinner" class="spinner-wrapper">
+            <div class="spinner-border text-purple" role="status"></div>
+            <p class="mt-2 text-muted">Cargando formulario de pago…</p>
+          </div>
+
+          <!-- Contenedor del formulario Krypton -->
+          <div id="kr-embedded" class="kr-embedded" style="display:none;"></div>
+
+          <div id="checkout-error" class="alert alert-danger d-none mt-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================ -->
+    <!-- VISTA 3: Resultado del pago                      -->
+    <!-- ================================================ -->
+    <section id="view-result" class="view">
+      <div class="card shadow-sm">
+        <div class="card-header section-header text-center">Resultado del pago</div>
+        <div class="card-body text-center">
+          <div id="result-icon" class="result-icon mb-3"></div>
+          <h4 id="result-status" class="font-weight-bold mb-3"></h4>
+
+          <table class="table table-bordered result-table">
+            <tbody>
+              <tr><th>N.° de orden</th><td id="result-orderId"></td></tr>
+              <tr><th>Monto</th><td><span id="result-amount"></span> <span id="result-currency"></span></td></tr>
+              <tr><th>Estado</th><td id="result-orderStatus"></td></tr>
+            </tbody>
+          </table>
+
+          <details class="text-left mt-3">
+            <summary><small class="text-muted">Ver respuesta técnica completa</small></summary>
+            <pre id="result-raw" class="mt-2"></pre>
+          </details>
+
+          <button id="btn-back" class="btn btn-outline-secondary mt-3">
+            Cerrar pasarela
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VISTA: Error de inicialización -->
+    <section id="view-waiting" class="view active">
+      <div class="text-center mt-5">
+        <div class="spinner-border text-purple" role="status"></div>
+        <p class="mt-4 font-weight-bold text-purple">
+          Preparando pasarela segura...
+        </p>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script src="payment.js"></script>
+</body>
+</html>
