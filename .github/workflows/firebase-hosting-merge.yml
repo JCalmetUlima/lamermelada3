@@ -17,10 +17,12 @@ jobs:
         run: npm ci
       - name: Build
         run: npm run build
-      - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0.10.0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          channelId: live
-          projectId: gen-lang-client-0484978887
+        env:
+          VITE_IZIPAY_PUBLIC_KEY: '${{ secrets.VITE_IZIPAY_PUBLIC_KEY }}'
+      - name: Deploy to Firebase Hosting and Functions
+        env:
+          SERVICE_ACCOUNT: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+        run: |
+          echo "$SERVICE_ACCOUNT" > sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS="${PWD}/sa.json"
+          npx firebase-tools deploy --only hosting,functions --project gen-lang-client-0484978887 -f
