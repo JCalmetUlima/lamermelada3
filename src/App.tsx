@@ -26,9 +26,13 @@ export default function App() {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        // Acceso por correo específico o por colección 'admins'
-        const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-        setIsAdmin(adminDoc.exists());
+        // Acceso por colección 'admins'
+        try {
+          const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+          setIsAdmin(adminDoc.exists());
+        } catch (e) {
+          setIsAdmin(false);
+        }
 
         // Listener en tiempo real para el perfil y estado de suscripción
         unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {

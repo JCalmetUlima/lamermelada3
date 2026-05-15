@@ -36,10 +36,24 @@ async function startServer() {
 
   app.use(express.json());
   
-  // CORS restringido
+  // CORS restringido (Opción para Producción)
+  const allowedOrigins = [
+    'https://lamermelada3.web.app',
+    'https://lamermelada3.firebaseapp.com',
+    'http://localhost:5173'
+  ];
+
   app.use(cors({
-    origin: '*', // En producción debería ser el dominio específico
+    origin: (origin, callback) => {
+      // Permitir requests sin origen (como apps móviles o curl) o que estén en la lista
+      if (!origin || allowedOrigins.includes(origin) || origin.includes('run.app')) {
+        callback(null, true);
+      } else {
+        callback(new Error('No permitido por CORS'));
+      }
+    },
     methods: ['GET', 'POST'],
+    credentials: true
   }));
 
   // Rate Limiter para pagos
@@ -165,23 +179,6 @@ async function startServer() {
     } catch (error: any) {
       console.error("Error en validación:", error.message);
       res.status(500).json({ error: error.message });
-    }
-  });
-
-  apiRouter.post("/validate-payment", async (req, res) => {
-    try {
-      const { userId } = req.body;
-      if (userId) {
-        await db.collection("users").doc(userId).set({
-          isSubscribed: true,
-          subscriptionActive: true,
-          subscriptionDate: admin.firestore.FieldValue.serverTimestamp(),
-          plan: "mensual"
-        }, { merge: true });
-      }
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Error interno" });
     }
   });
 

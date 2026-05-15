@@ -43,7 +43,7 @@ service cloud.firestore {
       allow read: if (isOwner(userId) && isValidId(userId)) || isAdmin();
       allow create: if isOwner(userId) && isValidId(userId) && isValidUser(request.resource.data);
       allow update: if (isOwner(userId) && isValidId(userId) && isValidUser(request.resource.data) && (
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firstName', 'lastName', 'phone', 'age', 'country', 'city', 'gender', 'subscriptionActive', 'subscriptionId', 'lastPaymentDate'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firstName', 'lastName', 'phone', 'age', 'country', 'city', 'gender'])
       )) || isAdmin();
     }
 
