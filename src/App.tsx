@@ -28,8 +28,7 @@ export default function App() {
       if (user) {
         // Acceso por correo específico o por colección 'admins'
         const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-        const isBootstrapAdmin = user.email === 'jorge.calmet92@gmail.com';
-        setIsAdmin(adminDoc.exists() || isBootstrapAdmin);
+        setIsAdmin(adminDoc.exists());
 
         // Listener en tiempo real para el perfil y estado de suscripción
         unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {

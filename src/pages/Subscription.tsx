@@ -75,6 +75,7 @@ export default function Subscription({ user }: SubscriptionProps) {
         amount: 7.00, 
         currency: 'PEN' 
       },
+      userId: user.uid,
       backendUrl: `${window.location.origin}/api/create-payment-token`,
       allowedOrigin: window.location.origin
     }, '*');

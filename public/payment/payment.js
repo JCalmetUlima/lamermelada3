@@ -10,7 +10,8 @@
     allowedOrigin: null,
     backendUrl: null,
     order: null,
-    customer: null
+    customer: null,
+    userId: null
   };
 
   function init() {
@@ -35,6 +36,7 @@
       state.backendUrl = data.backendUrl;
       state.order = data.order;
       state.customer = data.customer;
+      state.userId = data.userId;
 
       populateForm(data.customer, data.order);
       showView('view-capture');
@@ -147,24 +149,52 @@
   }
 
   function onPaid(event) {
+    console.log('Pago finalizado por Krypton. Validando integridad...', event);
     var answer = event.clientAnswer;
-    var isPaid = answer && answer.orderStatus === 'PAID';
+    var hash = event.hash || (event.rawAnswer && event.rawAnswer['kr-hash']);
+    
+    // Si no viene en el evento, intentar buscarlo en los campos de respuesta si KR lo expone ahí
+    if (!hash && answer && answer['kr-hash']) hash = answer['kr-hash'];
 
-    var result = {
-      status: isPaid ? 'PAID' : 'FAILED',
-      orderId: (answer && answer.orderDetails && answer.orderDetails.orderId) || state.order.orderId,
-      amount: answer && answer.orderDetails
-        ? (answer.orderDetails.orderTotalAmount / 100).toFixed(2)
-        : state.order.amount,
-      currency: answer && answer.orderDetails
-        ? answer.orderDetails.orderCurrency
-        : state.order.currency,
-      orderStatus: answer ? answer.orderStatus : 'UNKNOWN',
-      rawAnswer: answer || {}
-    };
+    // NOTA: Para seguridad real, enviamos TODO el answer y el hash al backend
+    var validationUrl = state.backendUrl.replace('create-payment-token', 'validate-payment-hash');
 
-    showResult(result);
-    notifyParent(result);
+    fetch(validationUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientAnswer: answer,
+        hash: hash,
+        userId: state.userId
+      })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.success) {
+        var result = {
+          status: 'PAID',
+          orderId: (answer && answer.orderDetails && answer.orderDetails.orderId) || state.order.orderId,
+          amount: answer && answer.orderDetails
+            ? (answer.orderDetails.orderTotalAmount / 100).toFixed(2)
+            : state.order.amount,
+          currency: answer && answer.orderDetails
+            ? answer.orderDetails.orderCurrency
+            : state.order.currency,
+          orderStatus: answer ? answer.orderStatus : 'UNKNOWN',
+          rawAnswer: answer || {}
+        };
+        showResult(result);
+        notifyParent(result);
+      } else {
+        throw new Error(data.error || 'Fallo en la validación del pago');
+      }
+    })
+    .catch(function(err) {
+      console.error('Error de validación:', err);
+      showError('checkout-error', 'Tu pago no pudo ser verificado: ' + err.message);
+      notifyParent({ status: 'ERROR', message: err.message });
+    });
+
     return false; 
   }
 
@@ -200,7 +230,7 @@
   }
 
   function notifyParent(result) {
-    var target = '*'; // Post to any origin if allowedOrigin is not set yet
+    var target = state.allowedOrigin || '*';
     window.parent.postMessage(
       Object.assign({ type: 'PAYMENT_RESULT' }, result),
       target
