@@ -38,6 +38,8 @@ async function startServer() {
   
   // CORS restringido (Opción para Producción)
   const allowedOrigins = [
+    'https://lamermelada.pe',
+    'https://www.lamermelada.pe',
     'https://lamermelada3.web.app',
     'https://lamermelada3.firebaseapp.com',
     'http://localhost:5173'
