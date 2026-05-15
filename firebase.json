@@ -18,6 +18,7 @@
     ]
   },
   "functions": {
+    "runtime": "nodejs24",
     "source": ".",
     "ignore": [
       "node_modules",
