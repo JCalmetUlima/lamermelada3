@@ -244,27 +244,36 @@ app.all("/api/*", (req, res) => {
 });
 
 // Start server
-if (!process.env.FUNCTION_TARGET) {
-  if (process.env.NODE_ENV !== "production") {
-    console.log(`Server v${SERVER_VERSION} starting local Vite server...`);
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    console.log(`Server v${SERVER_VERSION} starting production mode...`);
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+function startStandaloneServer() {
+  if (!process.env.FUNCTION_TARGET) {
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`Server v${SERVER_VERSION} starting local Vite server...`);
+      createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      }).then((vite) => {
+        app.use(vite.middlewares);
+        app.listen(PORT, "0.0.0.0", () => {
+          console.log(`Server running on port ${PORT}`);
+        });
+      }).catch((err) => {
+        console.error("SERVER: Failed to start Vite server:", err);
+      });
+    } else {
+      console.log(`Server v${SERVER_VERSION} starting production mode...`);
+      const distPath = path.join(process.cwd(), 'dist');
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+      app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running on port ${PORT}`);
+      });
+    }
   }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
-  });
 }
+
+startStandaloneServer();
 
 // Cloud Function export (v1)
 export const api = functions.region("us-central1").https.onRequest(app);
