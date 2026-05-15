@@ -20,25 +20,35 @@ const getIzipayCreds = () => ({
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  const SERVER_VERSION = "1.0.1-" + Date.now();
 
-  console.log("Starting server with Shop ID:", process.env.IZIPAY_SHOP_ID ? "PRESENT" : "MISSING");
+  // Global request logger
+  app.use((req, res, next) => {
+    console.log(`[V:${SERVER_VERSION}] ${req.method} ${req.url}`);
+    next();
+  });
+
+  console.log(`Server v${SERVER_VERSION} starting...`);
   console.log("Izipay Password:", process.env.IZIPAY_TEST_PASSWORD ? "PRESENT" : "MISSING");
 
   app.use(express.json());
 
+  // API Router
+  const apiRouter = express.Router();
+
   // Log middleware for all API requests
-  app.use("/api/*", (req, res, next) => {
-    console.log(`[API REQUEST] ${req.method} ${req.originalUrl}`);
+  apiRouter.use((req, res, next) => {
+    console.log(`[API DEBUG] ${req.method} ${req.path} - Full URL: ${req.originalUrl}`);
     next();
   });
 
   // Health check
-  app.get("/api/health", (req, res) => {
+  apiRouter.get("/health", (req, res) => {
     res.json({ status: "ok" });
   });
 
   // API Route: Create Izipay Form Token (Adapted for iframe manual)
-  app.post("/api/create-payment-token", async (req, res) => {
+  apiRouter.post("/create-payment-token", async (req, res) => {
     try {
       const { amount, currency, orderId, customer, userId } = req.body;
       const email = customer?.email || req.body.email;
@@ -105,7 +115,7 @@ async function startServer() {
   });
 
   // API Route: Verify Payment
-  app.post("/api/validate-payment", async (req, res) => {
+  apiRouter.post("/validate-payment", async (req, res) => {
     try {
       // In a real app, verify the HMAC signature here
       // For now, we'll assume success if the client says so (not secure for prod!)
@@ -129,9 +139,17 @@ async function startServer() {
     }
   });
 
-  // Catch-all for undefined /api routes BEFORE static middleware
+  // Mount API Router
+  app.use("/api", apiRouter);
+
+  // Catch-all for undefined /api routes AFTER mounting Router
   app.all("/api/*", (req, res) => {
-    res.status(404).json({ error: `La ruta de API ${req.method} ${req.url} no existe.` });
+    console.log(`[API 404] No match for ${req.method} ${req.originalUrl}`);
+    res.status(404).json({ 
+      error: "Endpoint de API no encontrado",
+      method: req.method,
+      path: req.originalUrl 
+    });
   });
 
   // Vite middleware for development

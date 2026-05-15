@@ -69,6 +69,9 @@
     document.getElementById('kr-embedded').style.display = 'none';
     hideError('checkout-error');
 
+    console.log('Sending request to backendUrl:', state.backendUrl);
+    console.log('Order:', state.order);
+
     requestFormToken(state.order, state.customer, state.backendUrl)
       .then(function (result) {
         initKrypton(result.publicKey, result.formToken);
