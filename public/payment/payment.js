@@ -69,8 +69,7 @@
     document.getElementById('kr-embedded').style.display = 'none';
     hideError('checkout-error');
 
-    console.log('Sending request to backendUrl:', state.backendUrl);
-    console.log('Order:', state.order);
+    console.log('Solicitando token a:', state.backendUrl);
 
     requestFormToken(state.order, state.customer, state.backendUrl)
       .then(function (result) {

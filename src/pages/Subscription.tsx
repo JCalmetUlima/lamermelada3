@@ -218,7 +218,7 @@ export default function Subscription({ user }: SubscriptionProps) {
               </div>
 
               <div className="mt-8 flex justify-center items-center gap-4 border-t-2 border-purple-50 pt-6">
-                <img src="https://micuentaweb.pe/static/img/visa-mc-amex-diners.png" alt="Tarjetas" className="h-6 opacity-60 grayscale hover:grayscale-0 transition-all" />
+                <img src="https://static.micuentaweb.pe/static/img/payment/visa-mastercard-amex.png" alt="Tarjetas" className="h-6 opacity-60 grayscale hover:grayscale-0 transition-all" />
               </div>
             </motion.div>
           </motion.div>

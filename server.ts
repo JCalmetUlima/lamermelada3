@@ -10,6 +10,7 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 import axios from "axios";
+import cors from "cors";
 
 // Izipay Credentials
 const getIzipayCreds = () => ({
@@ -32,23 +33,22 @@ async function startServer() {
   console.log("Izipay Password:", process.env.IZIPAY_TEST_PASSWORD ? "PRESENT" : "MISSING");
 
   app.use(express.json());
+  app.use(cors());
 
-  // API Router
+  // API router
   const apiRouter = express.Router();
 
-  // Log middleware for all API requests
+  // Root API logger
   apiRouter.use((req, res, next) => {
-    console.log(`[API DEBUG] ${req.method} ${req.path} - Full URL: ${req.originalUrl}`);
+    console.log(`[API CALL v2] ${req.method} ${req.path}`);
     next();
   });
 
-  // Health check
-  apiRouter.get("/health", (req, res) => {
-    res.json({ status: "ok" });
-  });
+  apiRouter.get("/ping", (req, res) => res.json({ status: "all good", time: Date.now() }));
 
-  // API Route: Create Izipay Form Token (Adapted for iframe manual)
+  // API Route: Create Izipay Form Token
   apiRouter.post("/create-payment-token", async (req, res) => {
+    console.log(`[API] Creating token...`);
     try {
       const { amount, currency, orderId, customer, userId } = req.body;
       const email = customer?.email || req.body.email;
@@ -61,11 +61,9 @@ async function startServer() {
       const publicKey = process.env.VITE_IZIPAY_PUBLIC_KEY;
 
       if (!shopId || !password || !publicKey) {
-        console.error("Missing Izipay credentials in environment variables");
-        return res.status(500).json({ error: "Configuración de pasarela incompleta (shopId, password o publicKey)" });
+        return res.status(500).json({ error: "Configuración incompleta" });
       }
 
-      // Create a Subscription/Payment Token
       const auth = Buffer.from(`${shopId}:${password}`).toString('base64');
       
       const payload = {
@@ -73,7 +71,7 @@ async function startServer() {
         currency: currency || "PEN",
         orderId: orderId || `SUB-${Date.now()}`,
         subscription: {
-          subscriptionId: `REF-${userId || Date.now()}-${Date.now()}`,
+          subscriptionId: `REF-${userId || "id"}-${Date.now()}`,
           amount: amount || 700,
           currency: currency || "PEN",
           effectDate: new Date().toISOString(),
@@ -81,14 +79,11 @@ async function startServer() {
         },
         customer: {
           email: email,
-          reference: userId || "anonymous",
-          billingDetails: customer?.billingDetails || {}
+          reference: userId || "anonymous"
         }
       };
 
-      console.log("Creating Izipay payment with payload:", JSON.stringify(payload, null, 2));
-
-      const response = await axios.post(
+      const resp = await axios.post(
         "https://api.micuentaweb.pe/api-payment/V4/Charge/CreatePayment",
         payload,
         {
@@ -99,31 +94,24 @@ async function startServer() {
         }
       );
 
-      if (response.data.status === "SUCCESS") {
+      if (resp.data.status === "SUCCESS") {
         res.json({ 
-          formToken: response.data.answer.formToken,
+          formToken: resp.data.answer.formToken,
           publicKey: publicKey
         });
       } else {
-        console.error("Izipay Error:", response.data);
-        res.status(502).json({ error: "Error de Izipay", detail: response.data });
+        res.status(502).json({ error: "Izipay error", detail: resp.data });
       }
     } catch (error: any) {
-      console.error("Server Error:", error.response?.data || error.message);
-      res.status(500).json({ error: "Error al crear token de pago", detail: error.response?.data });
+      console.error("API Error:", error.message);
+      res.status(500).json({ error: error.message });
     }
   });
 
   // API Route: Verify Payment
   apiRouter.post("/validate-payment", async (req, res) => {
     try {
-      // In a real app, verify the HMAC signature here
-      // For now, we'll assume success if the client says so (not secure for prod!)
-      const { hash, answer, userId } = req.body;
-      
-      console.log("Payment received for user:", userId);
-      
-      // Update user subscription status in Firebase
+      const { userId } = req.body;
       if (userId) {
         await db.collection("users").doc(userId).set({
           isSubscribed: true,
@@ -131,25 +119,19 @@ async function startServer() {
           plan: "mensual"
         }, { merge: true });
       }
-
       res.json({ success: true });
     } catch (error) {
-      console.error("Error validando pago:", error);
       res.status(500).json({ error: "Error interno" });
     }
   });
 
-  // Mount API Router
+  // Mount API router
   app.use("/api", apiRouter);
 
-  // Catch-all for undefined /api routes AFTER mounting Router
+  // Catch-all for undefined /api routes
   app.all("/api/*", (req, res) => {
-    console.log(`[API 404] No match for ${req.method} ${req.originalUrl}`);
-    res.status(404).json({ 
-      error: "Endpoint de API no encontrado",
-      method: req.method,
-      path: req.originalUrl 
-    });
+    console.log(`[API 404] ${req.method} ${req.url}`);
+    res.status(404).json({ error: "Ruta no encontrada", path: req.url });
   });
 
   // Vite middleware for development
