@@ -74,7 +74,7 @@ export default function Landing({ user }: LandingProps) {
               { 
                 step: "02", 
                 title: "Suscríbete", 
-                desc: "Activa tu participación con solo 7 soles mensuales vía Mercado Pago.",
+                desc: "Activa tu participación con solo 7 soles mensuales vía Izipay.",
                 icon: <Star className="text-purple-600" size={40} />
               },
               { 
@@ -112,7 +112,7 @@ export default function Landing({ user }: LandingProps) {
           <div className="space-y-6 text-xl md:text-2xl font-bold">
             <div className="flex items-center gap-4 bg-purple-700/50 p-4 rounded-xl border-2 border-purple-400">
               <CheckCircle2 size={32} className="text-yellow-400 shrink-0" />
-              <p>Pago 100% seguro con Mercado Pago</p>
+              <p>Pago 100% seguro con Izipay</p>
             </div>
             <div className="flex items-center gap-4 bg-purple-700/50 p-4 rounded-xl border-2 border-purple-400">
               <CheckCircle2 size={32} className="text-yellow-400 shrink-0" />
@@ -144,6 +144,7 @@ export default function Landing({ user }: LandingProps) {
           <div>
             <h3 className="text-2xl font-black tracking-tighter mb-2">LA MERMELADA</h3>
             <p className="opacity-50 text-sm">© 2026 Todos los derechos reservados.</p>
+            <p className="font-bold text-yellow-400 mt-2">En Proceso.</p>
           </div>
           <div className="flex gap-6">
             <Link to="/login" className="hover:text-yellow-400 transition font-bold">Iniciar sesión</Link>
@@ -151,7 +152,7 @@ export default function Landing({ user }: LandingProps) {
           </div>
           <div className="flex items-center gap-2 opacity-50">
             <ShieldCheck size={16} />
-            <span className="text-xs">Pago Seguro con Mercado Pago</span>
+            <span className="text-xs">Pago Seguro con Izipay</span>
           </div>
         </div>
       </footer>
